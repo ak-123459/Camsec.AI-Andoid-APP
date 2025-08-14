@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DrawerContent(navController: NavController, scaffoldState: ScaffoldState) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Text("MENU", modifier = Modifier.padding(16.dp), fontSize = 20.sp,style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        Text("MENU", modifier = Modifier.padding(16.dp), fontSize = 25.sp,style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
 
         Divider(modifier = Modifier.padding(2.dp), color = Color.Gray, thickness = 1.dp)
 
@@ -33,7 +33,6 @@ fun DrawerContent(navController: NavController, scaffoldState: ScaffoldState) {
         DrawerItem("Settings", "settings", navController, scaffoldState)
     }
 }
-
 
 
 @Composable
@@ -46,7 +45,7 @@ fun DrawerItem(
     val coroutineScope = rememberCoroutineScope()
     val currentRoute = navController.currentBackStackEntry?.destination?.route
 
-    Text(
+    Text(fontSize = 20.sp,
         text = label,
         modifier = Modifier
             .fillMaxWidth()

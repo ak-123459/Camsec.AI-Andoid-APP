@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "253214883365",
+    "project_id": "camsec-ai",
+    "storage_bucket": "camsec-ai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:253214883365:android:917acc780bc06495dec9cc",
+        "android_client_info": {
+          "package_name": "com.example.myapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDX43DubXt2WCAyXr3abMXib7oESswqT7Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

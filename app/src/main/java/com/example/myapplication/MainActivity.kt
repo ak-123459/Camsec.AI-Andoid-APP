@@ -1,7 +1,7 @@
 package com.example.myapplication
 
+import android.app.Application
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -10,56 +10,49 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.myapplication.screens.home.notifications.NotificationListScreen
 import com.example.myapplication.ui.theme.MyApplicationTheme
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import com.example.myapplication.FaceDetailsViewModel
-
-
+import com.example.myapplication.viewModels.NotificationViewModel
+import com.example.myapplication.viewModels.NotificationViewModelFactory
 
 class MainActivity : ComponentActivity() {
-
-
-    private lateinit var viewModel: FaceDetailsViewModel
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
-        // ✅ Initialize the ViewModel
-        viewModel = ViewModelProvider(this)[FaceDetailsViewModel::class.java]
-
-
-
-
+        enableEdgeToEdge()
+        setContent {
+            AppNavigation()
+        }
     }
 }
 
 
-
-
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
+fun AppNavigation() {
+
+    val navController = rememberNavController()
+    val context = LocalContext.current.applicationContext as Application
+
+    val viewModel: NotificationViewModel = viewModel(
+        factory = NotificationViewModelFactory(context)
     )
-}
 
 
+    NavHost(
+        navController = navController,
+        startDestination = "notifications"
+    ) {
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MyApplicationTheme {
-        Greeting("Android")
+        composable("notifications") {
+            NotificationListScreen(viewModel)
+        }
+
     }
 }
-
-

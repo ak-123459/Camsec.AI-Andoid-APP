@@ -1,141 +1,183 @@
 package com.example.myapplication.screens.components
 
+import android.annotation.SuppressLint
+import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
+import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.TabRowDefaults.Divider
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.myapplication.DemoFaceDetails
-import com.example.myapplication.FaceDetails
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.example.myapplication.network.DemoFaceDetails
 import com.example.myapplication.R
+import com.example.myapplication.network.StudentDetails
 import com.example.myapplication.local.repository.decodeBase64ToBitmap
 
 
 
-
 @Composable
-fun FaceItem(face: FaceDetails) {
-    val croppedBitmap = remember(face.cropped_face) {
-        decodeBase64ToBitmap(face.cropped_face)
+fun StudentItems(face: StudentDetails, onClick: () -> Unit) {
+
+    val croppedBitmap = remember(face.image) {
+        face.image?.let { Log.d("Image Data is ->", it) }
+        face.image?.let { decodeBase64ToBitmap(it) }
     }
 
-    val originalBitmap = remember(face.original_face) {
-        decodeBase64ToBitmap(face.original_face)
-    }
-
-
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        elevation = 2.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    ) {
-        Row(
+        // Modern card design with a subtle gradient and elevated shadow
+        androidx.compose.material3.Card(
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .clickable { onClick() }
         ) {
-            // Cropped face image
-            croppedBitmap?.let {
-                Image(
-                    bitmap = it.asImageBitmap(),
-                    contentDescription = "Cropped Face",
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Main content
-            Column(
-                modifier = Modifier.weight(1f)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(Color(0xFFE0E0FF), Color(0xFFF0F0FF))
+                        )
+                    )
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = face.student_name,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    maxLines = 1
-                )
-                Text(
-                    text = face.camera_name,
-                    fontSize = 13.sp,
-                    color = Color.Gray,
-                    maxLines = 1
-                )
-                Text(
-                    text = face.recognition_time,
-                    fontSize = 12.sp,
-                    color = Color.Blue
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Original face and date
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.Center
-            ) {
-                originalBitmap?.let {
+                // Profile image with a rounded, subtle border
+                croppedBitmap?.let {
                     Image(
                         bitmap = it.asImageBitmap(),
-                        contentDescription = "Original Face",
+                        contentDescription = "Student Profile",
                         modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White, RoundedCornerShape(12.dp))
+                            .padding(4.dp), // A subtle inner padding for the border effect
                         contentScale = ContentScale.Crop
+                    )
+                } ?: Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.LightGray.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Text(
+                        "No Image",
+                        color = Color.Gray,
+                        fontSize = 12.sp
                     )
                 }
 
-                Text(
-                    text = face.date,
-                    fontSize = 10.sp,
-                    color = Color.DarkGray,
-                    modifier = Modifier.padding(top = 6.dp)
-                )
+                Spacer(modifier = Modifier.width(20.dp))
+
+                // Main content section
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // Name is the most prominent element
+                    face.full_name?.let {
+                        androidx.compose.material3.Text(
+                            text = it,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 20.sp,
+                            color = Color(0xFF333333),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    // Class ID and Roll Number with a clear visual hierarchy
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        face.class_id?.let {
+                            androidx.compose.material3.Text(
+                                text = "Class: $it",
+                                fontSize = 14.sp,
+                                color = Color(0xFF666666),
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        face.roll_no?.let {
+                            androidx.compose.material3.Text(
+                                text = "Roll No: $it",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF555555)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
-}
-
-
 
 
 
@@ -145,20 +187,20 @@ fun FaceItem(face: FaceDetails) {
 
 
 @Composable
-fun DemoFaceItem(face: DemoFaceDetails,modifier: Modifier =Modifier,onClick: () -> Unit) {
+fun DemoFaceItem(face: DemoFaceDetails, modifier: Modifier =Modifier, onClick: () -> Unit) {
 
     Card(
         shape = RoundedCornerShape(12.dp),
         elevation = 2.dp,
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = Modifier.height(100.dp)
+            .fillMaxSize()
             .padding(horizontal = 12.dp, vertical = 6.dp).clickable {
 
                 onClick()
             }
     ) {
         Row(
-            modifier = Modifier
+            modifier = Modifier.height(100.dp)
                 .fillMaxWidth()
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -168,7 +210,7 @@ fun DemoFaceItem(face: DemoFaceDetails,modifier: Modifier =Modifier,onClick: () 
                     painter = painterResource(face.cropped_face),
                     contentDescription = "Cropped Face",
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(80.dp)
                         .clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )
@@ -413,7 +455,8 @@ val dummyFaceDetailsList = listOf(
 @Composable
 fun PreviewList(){
 
-    FaceDetailBottomSheet(DemoFaceDetails(
+    FaceDetailBottomSheet(
+        DemoFaceDetails(
         id = 1,
         student_id = 101,
         student_name = "Ravi Kumar",
@@ -479,5 +522,399 @@ fun FaceDetailBottomSheet(face: DemoFaceDetails) {
 
     }
 }
+
+
+
+
+
+@Composable
+fun AppDetailsBottomSheet(onDismiss: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .background(
+                color = Color.White,
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            )
+            .padding(16.dp)
+    ) {
+        // Close button
+        IconButton(onClick = onDismiss) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = "Close",
+                tint = Color.Black
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Title
+        Text(
+            text = "App Information",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // App Description
+        Text(
+            text = "This app provides detailed insights and functionalities to track attendance, manage profiles, and much more. It's designed to help users track important data with an intuitive interface.",
+            color = Color.Gray,
+            fontSize = 14.sp
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // App version
+        Text(
+            text = "Version: 1.0.0",
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = Color.Black
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Developer Info
+        Text(
+            text = "Developed by: Camsec.AI Team",
+            fontSize = 14.sp,
+            color = Color.Black
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // More information or links
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(backgroundColor = Color.Black)
+            ) {
+                Text(text = "Ok", color = Color.White)
+            }
+        }
+    }
+}
+
+
+@Composable
+fun ModernCircularLoader(
+    modifier: Modifier = Modifier,
+    size: Dp = 60.dp,
+    strokeWidth: Dp = 6.dp,
+    color: Color = Color(0xFF42A5F5)
+) {
+    CircularProgressIndicator(
+        modifier = modifier.size(size),
+        color = color,
+        strokeWidth = strokeWidth
+    )
+}
+
+
+@Composable
+fun LoadingScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White),
+        contentAlignment = Alignment.Center
+    ) {
+        ModernCircularLoader()
+    }
+}
+
+
+@Composable
+fun GradientCircularSpinner(
+    size: Dp = 80.dp,
+    strokeWidth: Dp = 8.dp,
+    colors: List<Color> = listOf(Color(0xFF42A5F5), Color(0xFF478ED1)),
+    animationDuration: Int = 1000
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "spinner-rotation")
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = animationDuration, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "angle"
+    )
+
+    val stroke = with(LocalDensity.current) { strokeWidth.toPx() }
+
+    Canvas(
+        modifier = Modifier
+            .size(size)
+            .rotate(angle)
+    ) {
+        val diameter = size
+        val radius = diameter / 2
+        val sweepAngle = 270f
+
+        drawArc(
+            brush = Brush.sweepGradient(colors),
+            startAngle = 0f,
+            sweepAngle = sweepAngle,
+            useCenter = false,
+            style = Stroke(width = stroke, cap = StrokeCap.Round)
+        )
+    }
+}
+
+@Composable
+fun GradientSpinnerDemo() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F5F5)),
+        contentAlignment = Alignment.Center
+    ) {
+        GradientCircularSpinner()
+    }
+}
+
+
+
+
+@Preview
+@Composable
+fun ShowPreview3(){
+
+
+    LoadingToggleScreen()
+
+}
+
+
+
+@Composable
+fun LoadingToggleScreen() {
+    // This keeps track of whether to show or hide the loader
+    var isLoading by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        // Main UI
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Tap the button to toggle loading", fontSize = 18.sp)
+            Spacer(modifier = Modifier.height(20.dp))
+            Button(onClick = { isLoading = !isLoading }) {
+                Text(if (isLoading) "Hide Progress" else "Show Progress")
+            }
+        }
+
+        // Loading overlay with progress bar
+        AnimatedVisibility(
+            visible = isLoading,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+//                    .clickable(enabled = true) {}, // Blocks interaction with background
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+    }
+}
+
+
+@Composable
+fun CustomMessageDialog(
+    showDialog: MutableState<Boolean>,
+    title: String,
+    message: String,
+    icon: ImageVector? = null,
+    confirmButtonText: String? = null,
+    onConfirm: (() -> Unit)? = null,
+    dismissButtonText: String? = null,
+    onDismiss: (() -> Unit)? = null
+) {
+    // State to control the visibility of the dialog content for animation
+    var animateVisibility by remember { mutableStateOf(false) }
+
+    if (showDialog.value) {
+        // Use Dialog composable for full customization
+        Dialog(
+            onDismissRequest = {
+                animateVisibility = false // Trigger exit animation
+                // Delay dismissal to allow animation to complete
+                // This requires a LaunchedEffect with a delay in a real app
+                // For simplicity, we'll dismiss immediately after animation state change
+                showDialog.value = false
+            },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false, // Allow custom width
+                dismissOnClickOutside = true,
+                dismissOnBackPress = true
+            )
+        ) {
+            // AnimatedVisibility for entry and exit animations
+            AnimatedVisibility(
+                visible = animateVisibility,
+                enter = fadeIn(animationSpec = tween(durationMillis = 300)) +
+                        scaleIn(animationSpec = tween(durationMillis = 300), initialScale = 0.8f),
+                exit = fadeOut(animationSpec = tween(durationMillis = 300)) +
+                        scaleOut(animationSpec = tween(durationMillis = 300), targetScale = 0.8f)
+            ) {
+                // Card provides a modern, elevated look for the dialog
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f) // Set custom width
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(16.dp), // Rounded corners
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Optional Icon
+                        icon?.let {
+                            Icon(
+                                imageVector = it,
+                                contentDescription = "Dialog Icon",
+                                tint = MaterialTheme.colors.primary,
+                                modifier = Modifier.height(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        // Title
+                        Text(
+                            text = title,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colors.onSurface,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Message
+                        Text(
+                            text = message,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colors.onSurface,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            dismissButtonText?.let {
+                                TextButton(onClick = {
+                                    animateVisibility = false
+                                    showDialog.value = false
+                                    onDismiss?.invoke()
+                                }) {
+                                    Text(it, color = MaterialTheme.colors.secondary)
+                                }
+                            }
+
+                            confirmButtonText?.let {
+                                Button(onClick = {
+                                    animateVisibility = false
+                                    showDialog.value = false
+                                    onConfirm?.invoke()
+                                }) {
+                                    Text(it)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun AdvancedBlackProgressDialog(onDismissRequest: () -> Unit ) {
+    // Defines the animation for the infinite rotation of the progress bar.
+    val infiniteTransition = rememberInfiniteTransition(label = "rotationTransition")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ), label = "rotation"
+    )
+
+    // A dialog with properties that prevent it from being dismissed on back press or outside clicks.
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+
+        Card(
+            modifier = Modifier.padding(16.dp),
+            shape = MaterialTheme.shapes.medium,
+            backgroundColor = Color.Black
+        )
+        {
+            Box(
+                modifier = Modifier
+                    .size(150.dp) // The size of the dialog content area.
+                    .padding(24.dp), // Padding inside the card.
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .rotate(rotation),
+                    color = Color.White,
+                    backgroundColor = Color.DarkGray,
+                    strokeWidth = 4.dp
+                )
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

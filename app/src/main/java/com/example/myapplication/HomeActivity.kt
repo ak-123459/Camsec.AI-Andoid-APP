@@ -1,11 +1,13 @@
 package com.example.myapplication
 
 
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,7 +15,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,46 +24,54 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.myapplication.ui.theme.MyApplicationTheme
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import com.example.myapplication.FaceDetailsViewModel
+import com.example.myapplication.local.db.DatabaseProvider
+import com.example.myapplication.local.db.NotificationEntity
+import com.example.myapplication.screens.auth.AuthAppNavigator
 import com.example.myapplication.screens.home.MyApp
 import kotlinx.coroutines.delay
-
-enum class LaunchScreens{
-
-    HOME,SPLASH
-}
-
+import com.example.myapplication.utility.SecurePrefsManager
+import com.example.myapplication.viewModels.DemoFaceDetailsViewModel
+import com.example.myapplication.viewModels.StudentDetailsViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 
 class HomeActivity : ComponentActivity() {
 
 
-    private lateinit var viewModel: DemoFaceDetailsViewModel
-//    private lateinit var viewModel: ProfileViewModel
+    private lateinit var viewModel: StudentDetailsViewModel
 
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // ✅ Initialize the ViewModel
-        viewModel = ViewModelProvider(this)[DemoFaceDetailsViewModel::class.java]
+        viewModel = ViewModelProvider(this)[StudentDetailsViewModel::class.java]
+        val db = DatabaseProvider.getDatabase(this)
+        val screenFromIntent = intent.getStringExtra("screen")
+
+        if(screenFromIntent=="notification"){
+
+            // 2. Create an Intent for the target activity
+            val intent = Intent(this, MainActivity::class.java)
+            // 3. Start the activity using the context
+            this.startActivity(intent)
+            this.finish()
+
+        }
+
 
         setContent {
-
 
             AppEntryPoint()
 
@@ -72,25 +81,42 @@ class HomeActivity : ComponentActivity() {
 }
 
 
+
+
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppEntryPoint() {
+
+    val context = LocalContext.current
+
+    val secPref  = SecurePrefsManager.getToken(context)
 
     var showSplash by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         delay(2000) // Show splash for 2 seconds
         showSplash = false
+
     }
 
     if (showSplash) {
 
         SplashScreen()
+    }
 
-    } else {
+    else if(!showSplash && secPref != null){
 
         MyApp()
+
     }
-}
+
+    else {
+        AuthAppNavigator()
+    }
+
+    }
+
+
 
 
 
@@ -110,21 +136,3 @@ fun SplashScreen(){
 }
 
 
-
-
-//
-//@Composable
-//fun Greeting(name: String, modifier: Modifier = Modifier) {
-//    Text(
-//        text = "Hello $name!",
-//        modifier = modifier
-//    )
-//}
-//
-//@Preview(showBackground = true)
-//@Composable
-//fun GreetingPreview() {
-//    MyApplicationTheme {
-//        Greeting("Android")
-//    }
-//}
