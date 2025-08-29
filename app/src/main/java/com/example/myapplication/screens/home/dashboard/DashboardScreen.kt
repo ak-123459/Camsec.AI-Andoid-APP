@@ -1,6 +1,5 @@
 package com.example.myapplication.screens.home.dashboard
 
-import MostRecentNotif
 import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
@@ -234,14 +233,6 @@ fun DashboardScreen() {
 
                                     Spacer(modifier = Modifier.height(16.dp))
 
-                                    // 🔹 Slide-in Notifications
-                                    AnimatedVisibility(
-                                        visible = true,
-                                        enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
-                                        exit = fadeOut()
-                                    ) {
-                                        MostRecentNotif()
-                                    }
                                 }
                             }
                         }

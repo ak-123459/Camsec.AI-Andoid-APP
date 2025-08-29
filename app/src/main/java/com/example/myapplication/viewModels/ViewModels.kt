@@ -329,6 +329,7 @@ class AttendanceViewModel : ViewModel() {
             override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
 
                 if (response.isSuccessful) {
+
                     try {
                         val responseBody = response.body()?.string()
                         val jsonObject = JSONObject(responseBody ?: "")

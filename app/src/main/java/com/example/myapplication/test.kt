@@ -1,234 +1,193 @@
-import android.util.Log
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.R
-import com.example.myapplication.local.db.NotificationEntity
-import com.example.myapplication.viewModels.NotificationViewModel
+import kotlinx.coroutines.launch
 
-// Define some colors for the UI
-val LightGray = Color(0xFFF0F0F0)
-val DarkPurple = Color(0xFF5A4D8D)
-val LightPurple = Color(0xFF8B83B0)
-val LightGreen = Color(0xFFD6F5D6)
-val DarkGreen = Color(0xFF4CAF50)
-val LightYellow = Color(0xFFFFFBE0)
-val DarkYellow = Color(0xFFE9C54B)
-val LightBlue = Color(0xFFD3E6FF)
-val DarkBlue = Color(0xFF4285F4)
-
-// Data class to represent a notification item
-data class NotificationItem(
-    val iconResId: Int,
-    val title: String,
-    val subtitle: String,
-    val time: String,
-    val iconBackgroundColor: Color,
-    val iconContentColor: Color
-)
-
+// This is the main Composable function for the app.
+// It sets up the Scaffold and handles the bottom sheet state.
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MostRecentNotif(viewModel: NotificationViewModel= viewModel()) {
+fun App() {
+    // Remember the state of the bottom sheet, allowing it to be controlled.
+    val sheetState = rememberModalBottomSheetState()
+    // Remember a CoroutineScope to launch suspend functions (like showing/hiding the sheet).
+    val scope = rememberCoroutineScope()
+    // A state variable to track if the bottom sheet is currently visible.
+    var showBottomSheet by remember { mutableStateOf(false) }
 
-    val notifications by viewModel.notifications.collectAsState(initial = listOf())
-    viewModel.clearNotificationStatus()
+    // Sample data to be displayed in the bottom sheet.
+    val attendanceData = AttendanceDetails(
+        name = "Alex Johnson",
+        imageUrl = "https://placehold.co/150x150/1e90ff/ffffff?text=Alex", // In a real app, use a real URL or resource ID.
+        datetime = "2023-10-27 at 10:30 AM",
+        status = "Present"
+    )
 
-    LaunchedEffect(Unit) {
-        viewModel.notifications.collect { list ->
-            list.forEach { notif ->
-                Log.d("RoomDebug", "Notification: $notif")
+    Scaffold(
+        modifier = Modifier.fillMaxWidth()
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Button to show the bottom sheet.
+            Button(
+                onClick = {
+                    showBottomSheet = true
+                }
+            ) {
+                Text("Show Attendance Details")
             }
         }
     }
 
 
+
+    // ModalBottomSheet is displayed conditionally.
+    if (showBottomSheet) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                // This is called when the user taps outside the sheet.
+                showBottomSheet = false
+            },
+            sheetState = sheetState
+        ) {
+            // The content of the bottom sheet is a separate composable for better code organization.
+            AttendanceBottomSheetContent(attendanceData)
+
+            // Spacer for bottom padding to avoid the navigation bar on some devices.
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+
+}
+
+// Data class to hold the details of an attendance record.
+data class AttendanceDetails(
+    val name: String,
+    val imageUrl: String,
+    val datetime: String,
+    val status: String)
+
+
+
+
+// This Composable displays the content inside the bottom sheet.
+@Composable
+fun AttendanceBottomSheetContent(details: AttendanceDetails) {
     Column(
         modifier = Modifier
-            .padding(16.dp)
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Draggable handle at the top.
+        // In Material 3, a drag handle is often automatically included, but you can add your own.
+        // Let's add a simple one for visual consistency with the previous example.
+        Column(
+            modifier = Modifier.padding(bottom = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(
+                modifier = Modifier
+                    .width(48.dp)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(Color.Gray.copy(alpha = 0.5f))
+            )
+        }
 
-
-        // Header
-        Row(
+        // The main content card for attendance details.
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
-            Text(
-                text = "Notifications",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-            )
-            Text(
-                text = "See All",
-                fontSize = 16.sp,
-                color = Color.Gray,
-                fontWeight = FontWeight.Medium
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-
-
-        if (notifications.isEmpty()) {
-            // ✅ Show empty state
-            Box(
+            Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(5.dp),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "No notifications available",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                // Profile Image with a ring.
+                Image(
+                    painter = painterResource(id = R.drawable.kidsprofile), // Use a real image resource here.
+                    contentDescription = "Profile Image",
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(4.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
-            }
 
+                Spacer(modifier = Modifier.width(16.dp))
 
-        }  else {
-
-            notifications.forEach { item ->
-                NotificationItemRow(item = item)
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-
-        }
-        }
-
-
-//        // List of notification items
-//        val notificationItems = listOf(
-//            NotificationItem(
-//                // Replace with your actual icon resource, e.g., R.drawable.ic_check_circle
-//                iconResId = R.drawable.ic_check_circle,
-//                title = "Order placed successfully!",
-//                subtitle = "Your order #12345 has been placed successfully. You can track its status in the app.",
-//                time = "Now",
-//                iconBackgroundColor = LightGreen,
-//                iconContentColor = DarkGreen
-//            ),
-//            NotificationItem(
-//                // Replace with your actual icon resource, e.g., R.drawable.ic_promotion
-//                iconResId = R.drawable.ic_promotion,
-//                title = "New promotion available",
-//                subtitle = "Check out our new promotions and get a discount on your next purchase!",
-//                time = "1h ago",
-//                iconBackgroundColor = LightBlue,
-//                iconContentColor = DarkBlue
-//            ),
-//            NotificationItem(
-//                // Replace with your actual icon resource, e.g., R.drawable.ic_payment
-//                iconResId = R.drawable.ic_payment,
-//                title = "Payment successful",
-//                subtitle = "Your payment for order #98765 has been successfully processed.",
-//                time = "3h ago",
-//                iconBackgroundColor = LightYellow,
-//                iconContentColor = DarkYellow
-//            )
-//        )
-
-
-    }
-
-
-@Composable
-fun NotificationItemRow(item: NotificationEntity) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icon
-            Column(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.camseclogo),
-                    contentDescription = null,
-
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Text content
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    item.title?.let {
-                        Text(
-                            text = it,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black
-                        )
-                    }
+                // Text Details Column.
+                Column {
                     Text(
-                        text = item.timestamp.toString(),
-                        fontSize = 12.sp,
-                        color = Color.Gray
+                        text = details.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                item.body?.let {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    // Status and date
                     Text(
-                        text = it,
-                        fontSize = 14.sp,
-                        color = Color.Gray
+                        text = "Status: ${details.status}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = when (details.status) {
+                            "Present" -> Color.Green.copy(alpha = 0.8f) // Green for present
+                            "Absent" -> Color.Red.copy(alpha = 0.8f) // Red for absent
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Date: ${details.datetime}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -236,10 +195,10 @@ fun NotificationItemRow(item: NotificationEntity) {
     }
 }
 
-//@Preview(showBackground = true)
-//@Composable
-//fun NotificationsScreenPreview() {
-//    // You'll need to define dummy resources or use a tool that can provide them for the preview
-//    // For example, you can create a R.drawable.ic_check_circle in your project
-//    NotificationsScreen()
-//}
+@Composable
+@Preview(showSystemUi = true, showBackground = true)
+fun SHOWUI(){
+
+    App()
+
+}

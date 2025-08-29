@@ -1,6 +1,5 @@
 package com.example.myapplication.screens.home.dashboard.attandance_summary_screen
 
-import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
@@ -23,16 +22,13 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.AlertDialog
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -52,22 +48,21 @@ import com.example.myapplication.viewModels.AttendanceViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.local.repository.decodeBase64ToBitmap
 import com.example.myapplication.utility.SecurePrefsManager
-import kotlinx.coroutines.CoroutineStart
 import kotlin.io.encoding.ExperimentalEncodingApi
-import android.util.Base64
 import android.util.Log
 import androidx.compose.material.Card
 import androidx.compose.material.Text
-import androidx.compose.material3.CardDefaults
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.text.font.FontWeight
+import com.example.myapplication.screens.components.AttendanceBottomSheetContent
+import com.example.myapplication.screens.components.AttendanceDetails
 import com.example.myapplication.screens.components.AutoDismissAttendanceErrorDialog
 import com.example.myapplication.viewModels.StudentDetailsViewModel
 
 
-
-
-@OptIn(ExperimentalEncodingApi::class)
+@OptIn(ExperimentalEncodingApi::class, ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AttendanceScreen(
@@ -82,8 +77,14 @@ fun AttendanceScreen(
     val isLoading by viewModel.isLoading
     val errorMessage by viewModel.errorMessage.observeAsState()
     val image = studentDetailsViewModel.studentImage.observeAsState()
+    // Remember the state of the bottom sheet, allowing it to be controlled.
+    val sheetState = rememberModalBottomSheetState()
 
     var showError by remember { mutableStateOf(false) }
+    var showDetectionImg by remember { mutableStateOf(false) }
+    // A state variable to track if the bottom sheet is currently visible.
+    var showBottomSheet by remember { mutableStateOf(false) }
+
 
 //    var attendanceStatus by remember { mutableStateOf("Not Marked") }
 //    var attendanceTime by remember { mutableStateOf("") }
@@ -114,7 +115,15 @@ fun AttendanceScreen(
             viewModel.fetchAttendance(stdID, clickedDate.toString(), accessToken =accessToken )
         }
 
+        showBottomSheet = true
     }
+
+    val bitmap = attendanceList?.detected_image?.takeIf {
+        it.isNotBlank() && it != "null"
+    }?.let { base64 ->
+        decodeBase64ToBitmap(base64)
+    }
+
 
 
     Log.d("ATTENDANCE-DETAILS",errorMessage.toString())
@@ -318,7 +327,7 @@ fun AttendanceScreen(
                                 else -> Color.White
                             }
                         )
-                        .clickable { if (day.isNotEmpty()) onDateClicked(day.toInt()) },
+                        .clickable { if (day.isNotEmpty()) onDateClicked(day.toInt())  },
                     contentAlignment = Alignment.Center
                 ) {
                     if (day.isNotEmpty()) {
@@ -365,21 +374,41 @@ fun AttendanceScreen(
             CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
         }
 
-        // ✅ Error
-        errorMessage?.let {
-            if (it.isNotBlank()) {
-                showError = true
-            }
-        }
+//        // ✅ Error
+//        errorMessage?.let {
+//            if (it.isNotBlank()) {
+//                showError = true
+//            }
+//        }
+//
+//        // Show the dialog
+//        if (showError) {
+//            errorMessage?.let {
+//                AutoDismissAttendanceErrorDialog(
+//                    errorMessage = it,
+//                    durationMillis = 2000,
+//                    onDismiss = { showError = false
+//                  }
+//                )
+//            }
+//        }
 
-        // Show the dialog
-        if (showError) {
-            errorMessage?.let {
-                AutoDismissAttendanceErrorDialog(
-                    errorMessage = it,
-                    durationMillis = 2000,
-                    onDismiss = { showError = false }
-                )
+
+
+        // ModalBottomSheet is displayed conditionally.
+        if (showBottomSheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    // This is called when the user taps outside the sheet.
+                    showBottomSheet = false
+                },
+                sheetState = sheetState
+            ) {
+                // The content of the bottom sheet is a separate composable for better code organization.
+                AttendanceBottomSheetContent(AttendanceDetails(name = studentName, imageUrl = bitmap, datetime = attendanceTime.toString(), status = attendanceStatus, error = errorMessage))
+
+                // Spacer for bottom padding to avoid the navigation bar on some devices.
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
 

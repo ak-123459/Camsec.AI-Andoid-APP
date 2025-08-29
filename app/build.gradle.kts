@@ -98,6 +98,8 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     kapt(libs.androidx.room.compiler) // ✅ Room annotation processor
     implementation(libs.material3)
+    implementation(libs.coil.compose)
+
 
 
 }

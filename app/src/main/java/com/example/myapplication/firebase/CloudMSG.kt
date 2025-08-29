@@ -60,8 +60,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 val notification = NotificationEntity(
                     title = title,
                     body = body,
-                    timestamp = System.currentTimeMillis()
-                )
+                    timestamp = System.currentTimeMillis())
 
                 // Save in background thread
                 CoroutineScope(Dispatchers.IO).launch {

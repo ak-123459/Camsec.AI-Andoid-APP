@@ -74,7 +74,8 @@ data class AttendanceRequest(
 
 data class AttendanceResponse(
     val present: Int?,
-    val created_at:String?
+    val created_at:String?,
+    val detected_image:String?
 )
 
 

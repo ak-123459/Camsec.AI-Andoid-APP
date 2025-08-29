@@ -1,15 +1,15 @@
 package com.example.myapplication.screens.components
 
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,7 +32,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
@@ -48,6 +51,7 @@ import androidx.compose.material.Text
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.CardDefaults
@@ -69,8 +73,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -89,6 +96,8 @@ import com.example.myapplication.R
 import com.example.myapplication.network.StudentDetails
 import com.example.myapplication.local.repository.decodeBase64ToBitmap
 import kotlinx.coroutines.delay
+import java.time.LocalDate
+
 
 @Composable
 fun StudentItems(face: StudentDetails, onClick: () -> Unit) {
@@ -1073,14 +1082,192 @@ fun AdvancedToastMessage(
     }
 }
 
+/// Data class (unchanged)
 
 
+/// Data class for attendance details (no changes)
+data class AttendanceDetails(
+    val name: String?,
+    val imageUrl: Bitmap?,
+    val datetime: String?,
+    val status: String?,
+    val error: String?
+)
 
+@Composable
+fun AttendanceBottomSheetContent(details: AttendanceDetails?) {
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    var showFullImage by remember { mutableStateOf(false) } // 👈 state for full-screen image
 
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(screenHeight * 0.8f) // 👈 80% of screen height
+            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .background(MaterialTheme.colors.surface)
+            .padding(bottom = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Drag handle
+        Box(
+            modifier = Modifier
+                .padding(top = 16.dp, bottom = 8.dp)
+                .width(40.dp)
+                .height(4.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colors.secondaryVariant.copy(alpha = 0.6f))
+        )
 
+        if (details == null) {
+            // Show loader if details not available
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colors.primary,
+                    strokeWidth = 4.dp
+                )
+            }
+        } else {
+            // ==== Main content when details available ====
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()) // scroll if content is large
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Rectangular image with click to expand
+                Image(
+                    painter = (details.imageUrl?.asImageBitmap()?.let { BitmapPainter(it) }
+                        ?: painterResource(id = R.drawable.kidsprofile)) as Painter,
+                    contentDescription = "Profile Image",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { showFullImage = true }, // 👈 open full screen
+                    contentScale = ContentScale.Crop
+                )
 
+                Spacer(modifier = Modifier.height(20.dp))
 
+                // Student Name (big)
+                details.name?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.h5.copy(fontSize = 22.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colors.onSurface
+                    )
+                }
 
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Status badge (smaller size, pastel)
+                details.status?.let {
+                    Text(
+                        text = it.uppercase(),
+                        style = MaterialTheme.typography.body2.copy(fontWeight = FontWeight.Bold),
+                        color = Color.Black,
+                        modifier = Modifier
+                            .background(
+                                color = when (details.status) {
+                                    "Present" -> Color(0xFFA5D6A7) // soft green
+                                    "Absent" -> Color(0xFFEF9A9A) // soft red
+                                    else -> Color.LightGray
+                                },
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Divider(
+                    modifier = Modifier.fillMaxWidth(0.6f),
+                    color = MaterialTheme.colors.surface.copy(alpha = 0.1f)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Date & Time (smaller text)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CalendarToday,
+                        contentDescription = "Date",
+                        tint = MaterialTheme.colors.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    details.datetime?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.body2,
+                            color = MaterialTheme.colors.onSurface
+                        )
+                    }
+                }
+
+                // Error message (smaller + softer)
+                details.error?.takeIf { it.isNotBlank() }?.let { errorMsg ->
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colors.error.copy(alpha = 0.1f))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Error,
+                            contentDescription = "Error",
+                            tint = MaterialTheme.colors.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = errorMsg,
+                            style = MaterialTheme.typography.body2.copy(fontWeight = FontWeight.Normal),
+                            color = MaterialTheme.colors.error
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // ====== Full-Screen Image Preview ======
+    if (showFullImage) {
+        Dialog(onDismissRequest = { showFullImage = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = (details?.imageUrl?.asImageBitmap()?.let { BitmapPainter(it) }
+                        ?: painterResource(id = R.drawable.kidsprofile)) as Painter,
+                    contentDescription = "Full Image",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .clickable { showFullImage = false }, // tap again to close
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+    }
+}
 
 
 
