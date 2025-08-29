@@ -2,10 +2,12 @@ package com.example.myapplication.screens.settings
 
 import android.app.Activity
 import android.content.Context
+import android.content.SharedPreferences
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -18,30 +20,40 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.myapplication.App.Companion.context
 import com.example.myapplication.R
+import com.example.myapplication.local.repository.cancelAllNotifications
 import com.example.myapplication.screens.components.AppDetailsBottomSheet
 import com.example.myapplication.utility.SecurePrefsManager
 import com.example.myapplication.utility.logoutUser
 
+
+
+
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun SettingsScreen(navController: NavController) {
 
-
     val authShardPref = SecurePrefsManager
     val context = LocalContext.current
-    // State to manage the visibility of the bottom sheet
     var bottomSheetState by remember { mutableStateOf(false) }
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings", color = Color.White) },
+                title = {
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(animationSpec = tween(700)) + slideInVertically(initialOffsetY = { -40 }),
+                        exit = fadeOut()
+                    ) {
+                        Text("Settings", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
                 backgroundColor = Color.Black,
-                elevation = 0.dp
+                elevation = 4.dp
             )
         },
         backgroundColor = Color.White
@@ -54,58 +66,74 @@ fun SettingsScreen(navController: NavController) {
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Settings List
-            SettingsList(
-                onAboutClick = { bottomSheetState = true } // Open bottom sheet on About click
-            )
-
+            // 🔹 Animated Settings List
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(animationSpec = tween(500)) + slideInHorizontally(initialOffsetX = { -80 }),
+                exit = fadeOut()
+            ) {
+                SettingsList(onAboutClick = { bottomSheetState = true }, authShardPref)
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action Buttons
-            ActionButtons(context,navController)
+            // 🔹 Fade-in Buttons
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(animationSpec = tween(600)) + slideInVertically(initialOffsetY = { 60 }),
+                exit = fadeOut()
+            ) {
+                ActionButtons(context, navController)
+            }
         }
     }
 
-    // Bottom Sheet to show app details
     if (bottomSheetState) {
-        AppDetailsBottomSheet(
-            onDismiss = { bottomSheetState = false }
-        )
+        AppDetailsBottomSheet(onDismiss = { bottomSheetState = false })
     }
 }
 
-
 @Composable
-fun SettingsList(onAboutClick: () -> Unit) {
+fun SettingsList(onAboutClick: () -> Unit,secSharedPreferences:
+SecurePrefsManager) {
     val settings = listOf(
         SettingItem("Notifications", Icons.Default.Notifications),
         SettingItem("Privacy", Icons.Default.Lock),
         SettingItem("Account", Icons.Default.AccountCircle),
         SettingItem("About", ImageVector.vectorResource(R.drawable.about)),
-
-        )
+    )
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        settings.forEach { setting ->
-            SettingItemCard(setting,onAboutClick)
+        settings.forEachIndexed { index, setting ->
+            // 🔹 Staggered card animations
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(animationSpec = tween(400, delayMillis = index * 100)) +
+                        slideInVertically(initialOffsetY = { 40 }),
+                exit = fadeOut()
+            ) {
+                SettingItemCard(setting, onAboutClick,secSharedPreferences)
+            }
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-fun SettingItemCard(setting: SettingItem,onAboutClick: () -> Unit) {
+fun SettingItemCard(setting: SettingItem, onAboutClick: () -> Unit,secSharedPreferences: SecurePrefsManager) {
     var isToggled by remember { mutableStateOf(false) }
+
+    var notificationsEnabled by remember {
+        mutableStateOf(secSharedPreferences.getNotificationsEnabled(context))
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = 4.dp,
+        shape = RoundedCornerShape(16.dp),
+        elevation = 6.dp,
         backgroundColor = Color.Black,
         border = BorderStroke(1.dp, Color.White)
     ) {
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -124,28 +152,47 @@ fun SettingItemCard(setting: SettingItem,onAboutClick: () -> Unit) {
                 Text(
                     text = setting.title,
                     fontSize = 16.sp,
-                    color = Color.White
+                    color = Color.White,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            // Toggle for settings like Notifications
-            if (setting.title == "Notifications") {
-                Switch(
-                    checked = isToggled,
-                    onCheckedChange = { isToggled = it },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, disabledCheckedTrackColor = Color.Gray, uncheckedThumbColor = Color.Gray, uncheckedTrackColor = Color.Cyan)
-                )
-            }
+            when (setting.title) {
+                "Notifications" -> {
+                    Switch(
+                        checked = notificationsEnabled,
+                        onCheckedChange = { enabled ->
+                            notificationsEnabled = enabled
+                            isToggled = true
+                            SecurePrefsManager.saveNotificationsEnabled(context, enabled)
 
-            if (setting.title == "About") {
-                Box(
-                    modifier = Modifier
-                        .clickable(onClick = { onAboutClick() })
-                        .padding(16.dp)
-                ) {
-                    Text(text = "More Info", color = Color.White, fontSize = 15.sp)
+
+                            if (!enabled) {
+                                cancelAllNotifications(context)
+
+                            }
+                        },
+
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color(0xFF1E88E5)
+                        )
+                    )
+                }
+                "About" -> {
+                    Text(
+                        text = "More Info",
+                        color = Color(0xFF64B5F6),
+                        fontSize = 15.sp,
+                        modifier = Modifier
+                            .clickable { onAboutClick() }
+                            .padding(8.dp)
+                    )
                 }
             }
+
+
         }
     }
 }
@@ -153,43 +200,25 @@ fun SettingItemCard(setting: SettingItem,onAboutClick: () -> Unit) {
 
 
 @Composable
-fun ActionButtons( context: Context, navController: NavController) {
-
+fun ActionButtons(context: Context, navController: NavController) {
     val activity = context as? Activity
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    OutlinedButton(
+        onClick = {
+            logoutUser(context)
+            activity?.recreate()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = Color.White,
+            backgroundColor = Color(0xFF1E3C72)
+        ),
+        border = BorderStroke(1.dp, Color.White)
     ) {
-        Button(
-            onClick = { /* Handle Change Password */ },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(backgroundColor = Color.Black)
-        ) {
-            Text(text = "Change Password", color = Color.White, fontSize = 18.sp)
-        }
-
-        OutlinedButton(
-            onClick = {
-                logoutUser(context)
-                activity?.recreate()
-                      },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White, backgroundColor = MaterialTheme.colors.primary),
-            border = BorderStroke(1.dp, Color.White)
-        ) {
-            Text(text = "Logout", fontSize = 18.sp, color = Color.White)
-        }
+        Text(text = "Logout", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
     }
 }
 
 data class SettingItem(val title: String, val icon: ImageVector)
-//
-//@Preview(showBackground = true)
-//@Composable
-//fun SettingsPreview() {
-//    SettingsScreen()
-//}

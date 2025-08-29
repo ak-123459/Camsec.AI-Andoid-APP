@@ -5,12 +5,10 @@ package com.example.myapplication.network
 
 data class StudentDetails(
 
-    val std_id:Int?,
+    val id:Int?,
     val full_name: String?,
     val email:String?,
-    val roll_no:String?,
     val class_id:String?,
-    val created_at:String?,
     val image:String?,
 )
 
@@ -39,46 +37,46 @@ data class DemoFaceDetails(
 
 
 data class LoginRequestData(
-    val email:String,
-    val password_hash:String
+    val parent_code:String?,
+    val password_hash:String?,
+    val fcm_token: String?
 )
 
 
 data class LoginResponseData(
-    val id:Int?,
+    val id:String?,
     val full_name:String?,
     val email:String?,
     val phone_number:String?,
-    val device_token:String?
+    var access_token: String? = null
+
 )
 
 
-data class GetStudentByEmail(
-    val email: String?
+data class GetStudentByParentCode(
+    val parent_code: String?
 )
 
 
 
 data class GetAttendance(
-    val std_id: String,
+    val std_id: String?,
     val date:String
 )
 
 
 // Attendance.kt
 data class AttendanceRequest(
-    val std_id: Int,
-    val date: String
+    val std_id: Int?,
+    val date: String?
 )
 
 
 data class AttendanceResponse(
-    val std_id: Int,
-    val present: Int,
-    val date: String,          // keep as String unless you want Date parsing
-    val class_id: String?,
+    val present: Int?,
     val created_at:String?
 )
+
 
 
 data class ParentsProfile(
@@ -91,7 +89,7 @@ data class ParentsProfile(
 
 
 data class  SendFcmToken(
-    val  email: String,var fcm_token:String
+    val  parent_code: String,var fcm_token:String
 )
 
 

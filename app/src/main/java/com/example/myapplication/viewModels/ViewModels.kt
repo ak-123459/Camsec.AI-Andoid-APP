@@ -28,15 +28,18 @@ import com.example.myapplication.local.db.DatabaseProvider
 import com.example.myapplication.local.db.NotificationEntity
 import com.example.myapplication.local.repository.AttendanceRepository
 import com.example.myapplication.network.AttendanceResponse
-import com.example.myapplication.network.GetStudentByEmail
+import com.example.myapplication.network.GetStudentByParentCode
 import com.example.myapplication.network.LoginRequestData
 import com.example.myapplication.network.LoginResponseData
 import com.example.myapplication.network.SendFcmToken
 import com.example.myapplication.network.StudentDetails
+import com.example.myapplication.utility.SecurePrefsManager
 import com.google.firebase.auth.ActionCodeSettings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -51,12 +54,14 @@ class StudentDetailsViewModel : ViewModel() {
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> get() = _error
 
-    suspend fun fetchFaceData(request: GetStudentByEmail) {
-        val call = RetrofitClient.apiService.getStudentByEmail(request)
+    suspend fun fetchFaceData(request: GetStudentByParentCode, accessToken: String) {
+        val call = RetrofitClient.apiService.getStudentByParentID(request,accessToken)
 
         call.enqueue(object : Callback<ResponseBody> {
             override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
+
                 if (response.isSuccessful) {
+
                     val rawJson = response.body()?.string()
                     Log.d("STUDENTS-DATA", "Data Received: {${rawJson}}")
 
@@ -79,18 +84,22 @@ class StudentDetailsViewModel : ViewModel() {
 
                     } catch (e: Exception) {
                         Log.e("API", "JSON parsing error: ${e.message}")
-                        Log.e("API-DATA", "Raw JSON: ${response.errorBody().toString()}")
-                        _error.postValue("Parsing error: ${e.message}")
+                        Log.e("API-DATA+++++", "Raw JSON: ${response.errorBody().toString()}")
+                        _error.postValue("----Parsing error: ${e.message}")
                     }
 
                 } else {
 
                     _error.postValue("Error: ${response.code()}")
+                    Log.e("API-DATA", "-----Raw JSON: ${response.message()}")
+
                 }
             }
 
             override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
                 _error.postValue("Failure: ${t.message}")
+                Log.e("API-DATA ------++++++++98494-------", "Raw JSON: ${t.message.toString()}")
+
             }
         })
     }
@@ -175,7 +184,7 @@ class LoginViewModel : ViewModel() {
     private val _fcmSendError = MutableLiveData<String?>()
     val fcmSendError: LiveData<String?> get() = _fcmSendError
 
-    fun loginUser(request: LoginRequestData,fcmToken:String) {
+    fun loginUser(request: LoginRequestData) {
         val call = RetrofitClient.apiService.loginParents(request)
         _isLoading.value = true
 
@@ -189,37 +198,44 @@ class LoginViewModel : ViewModel() {
 
                         val success = jsonObject.optBoolean("success", false)
 
+
                         if (success) {
 
-
+                            // ✅ Extract access token
+                            val accessToken = jsonObject.optString("access_token", "")
                             val userJson = jsonObject.optJSONObject("user")
                             val gson = Gson()
-                            val user = gson.fromJson(userJson.toString(), LoginResponseData::class.java)
+                            val user = gson.fromJson(userJson!!.toString(), LoginResponseData::class.java)
+                            user.access_token = "Bearer $accessToken"
                             _loginResult.postValue(user)
 
-                            Log.d("LOGIN->", " ${response.message()}")
+                            Log.d("LOGIN->", "Full Response  $jsonObject")
 
-
+                            request.parent_code?.let { Log.d("PARENT CODE IS :-> ", it) }
                             // ✅ Send FCM token after login success
-                            user.email?.let { sendFCMToken(it, fcmToken) }
+
                         } else {
+
+                            Log.e("LoginViewModel", "----->> error: ${response.body()}")
+
                             val message = jsonObject.optString("message", "Login failed")
                             _error.postValue(message)
                         }
 
                     } catch (e: Exception) {
+
                         Log.e("LoginViewModel", "JSON parsing error: ${e.message}")
                         _error.postValue("Parsing error: ${e.message}")
 
 
                     }finally {
 
-
                         _isLoading.value = false
                     }
                 } else {
                     _isLoading.value = false
                     _error.postValue("Login failed: ${response.code()}")
+                    Log.e("LoginViewModel", "--+++---++>>>>>>: ${response.body()}")
                 }
 
             }
@@ -233,52 +249,58 @@ class LoginViewModel : ViewModel() {
     }
 
 
-
-
-    // ✅ New: Send FCM token
-    private fun sendFCMToken(email: String, token: String) {
-        val request = SendFcmToken(email, token)
-        val call = RetrofitClient.apiService.sendFCMToken(request)
-
-        call.enqueue(object : Callback<ResponseBody> {
-            override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
-                if (response.isSuccessful) {
-
-                    val responseBody = response.body()?.string()
-                    val jsonObject = JSONObject(responseBody ?: "")
-
-                    val success = jsonObject.optBoolean("success", false)
-
-                    if(success){
-
-                        _fcmSendSuccess.postValue(true)
-                        _fcmSendError.postValue("FCM success: ${response.code()}")
-                        Log.d("FCM->", "FCM success: ${token}")
-
-                    }else {
-
-                        val message = jsonObject.optString("message", "FCM Token Send failed")
-                        _fcmSendError.postValue(message)
-
-                    }
-
-
-                } else {
-                    _fcmSendSuccess.postValue(false)
-                    _fcmSendError.postValue("FCM failed: ${response.code()}")
-                    Log.d("FCM->", "FCM Send Failed: ${response.message()}")
-
-                }
-            }
-
-            override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
-                _fcmSendSuccess.postValue(false)
-                _fcmSendError.postValue("FCM error: ${t.message}")
-                Log.d("FCM->", "FCM send failed: ${t.message}")
-
-            }
-        })
-    }
+//
+//    // ✅ New: Send FCM token
+//    private fun sendFCMToken(parentCode: String, token: String,accessToken:String) {
+//
+//        val request = SendFcmToken(parentCode, token)
+//        val call = RetrofitClient.apiService.sendFCMToken(request,"Bearer $accessToken")
+//
+//
+//        call.enqueue(object : Callback<ResponseBody> {
+//            override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
+//
+//                if (response.isSuccessful) {
+//
+//                    val responseBody = response.body()?.string()
+//                    val jsonObject = JSONObject(responseBody ?: "")
+//
+//                    val success = jsonObject.optBoolean("success", false)
+//
+//                    if(success){
+//
+//                        _fcmSendSuccess.postValue(true)
+//                        _fcmSendError.postValue("FCM success: ${response.code()}")
+//                        Log.d("FCM->", "FCM success: ${token}")
+//
+//
+//                    }else {
+//
+//                        val message = jsonObject.optString("message", "FCM Token Send failed")
+//                        _fcmSendError.postValue(message)
+//                        Log.d("FCM--7673737373->", "FCM success: ${token}")
+//
+//
+//
+//                    }
+//
+//
+//                } else {
+//                    _fcmSendSuccess.postValue(false)
+//                    _fcmSendError.postValue("FCM failed: ${response.code()}")
+//                    Log.d("FCM->", "FCM Send Failed: ${response.body()}")
+//
+//                }
+//            }
+//
+//            override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+//                _fcmSendSuccess.postValue(false)
+//                _fcmSendError.postValue("FCM error: ${t.message}")
+//                Log.d("FCM---------------------------------FCM>", "FCM send failed: ${t.message}")
+//
+//            }
+//        })
+//    }
 }
 
 
@@ -296,11 +318,14 @@ class AttendanceViewModel : ViewModel() {
     private val _errorMessage = MutableLiveData<String?>(null)
     val errorMessage: LiveData<String?> = _errorMessage
 
-    fun fetchAttendance(stdId: Int, date: String) {
+
+    fun fetchAttendance(stdId: Int, date: String,accessToken: String) {
         _isLoading.value = true
         _errorMessage.value = null
+        _attendance.value = null   // reset previous data
 
-        repository.getAttendanceManual(stdId, date, object : Callback<ResponseBody> {
+
+        repository.getAttendanceManual(stdId = stdId, date = date, accessToken = accessToken, object : Callback<ResponseBody> {
             override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
 
                 if (response.isSuccessful) {
@@ -309,10 +334,11 @@ class AttendanceViewModel : ViewModel() {
                         val jsonObject = JSONObject(responseBody ?: "")
 
                         val success = jsonObject.optBoolean("success", false)
+
                         if (success) {
                             val attendanceJson = jsonObject.optJSONObject("attendance")
                             val gson = Gson()
-                            val attendanceObj = gson.fromJson(attendanceJson.toString(), AttendanceResponse::class.java)
+                            val attendanceObj = gson.fromJson(attendanceJson!!.toString(), AttendanceResponse::class.java)
                             _attendance.value = attendanceObj.copy()
                             Log.d("ATTENDANCE_VIEWMODEL", "Parsed: $attendanceObj")
                         } else {
@@ -327,9 +353,13 @@ class AttendanceViewModel : ViewModel() {
                     finally {
                         _isLoading.value = false
                     }
+
+
                 } else {
                     _isLoading.value = false
                     _errorMessage.value = "Server error: ${response.code()}"
+                    Log.e("ATTENDANCE_VIEWMODEL", "Parsing error: ${response.body()}")
+
                 }
 
             }
@@ -347,16 +377,27 @@ class AttendanceViewModel : ViewModel() {
 class NotificationViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dao = DatabaseProvider.getDatabase(application).notificationDao()
+    // MutableStateFlow to hold and update the notification state
+    private val _hasNewNotifications = MutableStateFlow(false)
+    // Expose as an immutable StateFlow for the UI to observe
+    val hasNewNotifications: StateFlow<Boolean> = _hasNewNotifications.asStateFlow()
 
     val notifications: StateFlow<List<NotificationEntity>> =
         dao.getAllNotifications()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+
 
     fun markAsRead(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             val notif = dao.getById(id)?.copy(isRead = true)
             notif?.let { dao.update(it) }
         }
+    }
+
+
+    fun clearNotificationStatus() {
+        _hasNewNotifications.value = false
     }
 
     // 🔹 Function to log all notifications
@@ -366,6 +407,9 @@ class NotificationViewModel(application: Application) : AndroidViewModel(applica
                 list.forEach { notif ->
                     Log.d("RoomDebug", "Notification: id=${notif.id}, title=${notif.title}, body=${notif.body}, isRead=${notif.isRead}, timestamp=${notif.timestamp}")
                 }
+
+                _hasNewNotifications.value = true
+
             }
         }
     }

@@ -21,7 +21,7 @@ android {
 
         val apiKey = localProperties.getProperty("apiKey") ?: ""
 
-        buildConfigField("String", "API-KEY", apiKey)
+        buildConfigField("String", "APIKEY", apiKey)
 
         applicationId = "com.example.myapplication"
         minSdk = 24

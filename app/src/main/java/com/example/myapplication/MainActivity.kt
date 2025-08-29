@@ -18,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.screens.home.notifications.NotificationListScreen
+import com.example.myapplication.screens.subscriptions.PricingScreen
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.viewModels.NotificationViewModel
 import com.example.myapplication.viewModels.NotificationViewModelFactory
@@ -32,6 +33,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+
+
 
 
 @Composable

@@ -55,33 +55,41 @@ import com.example.myapplication.utility.SecurePrefsManager
 import kotlinx.coroutines.CoroutineStart
 import kotlin.io.encoding.ExperimentalEncodingApi
 import android.util.Base64
+import android.util.Log
+import androidx.compose.material.Card
 import androidx.compose.material.Text
+import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.text.font.FontWeight
+import com.example.myapplication.screens.components.AutoDismissAttendanceErrorDialog
 import com.example.myapplication.viewModels.StudentDetailsViewModel
+
 
 
 
 @OptIn(ExperimentalEncodingApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun AttendanceScreen(studentDetailsViewModel: StudentDetailsViewModel,
+fun AttendanceScreen(
+    studentDetailsViewModel: StudentDetailsViewModel,
     studentName: String,
     stdID: Int,
     viewModel: AttendanceViewModel = viewModel()
 ) {
     val attendanceList by viewModel.attendance.observeAsState()
+    val context  = LocalContext.current
+    val accessToken = SecurePrefsManager.getToken(context)
     val isLoading by viewModel.isLoading
     val errorMessage by viewModel.errorMessage.observeAsState()
-    val context = LocalContext.current
-    val secShared = SecurePrefsManager.getEmail(context)
-    val userName = studentName
     val image = studentDetailsViewModel.studentImage.observeAsState()
 
-    var attendanceStatus by remember { mutableStateOf("Not Marked") }
-    var attendanceTime by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
 
-    val selectedDate = remember { mutableStateOf(LocalDate.now()) } // controls calendar month
-    val selectedDay = remember { mutableStateOf(LocalDate.now()) }  // full selected day
+//    var attendanceStatus by remember { mutableStateOf("Not Marked") }
+//    var attendanceTime by remember { mutableStateOf("") }
+
+    val selectedDate = remember { mutableStateOf(LocalDate.now()) }
+    val selectedDay = remember { mutableStateOf(LocalDate.now()) }
 
     val currentDate = selectedDate.value
     val year = currentDate.year
@@ -92,146 +100,202 @@ fun AttendanceScreen(studentDetailsViewModel: StudentDetailsViewModel,
     val firstDayOfMonth = currentDate.withDayOfMonth(1)
     val daysInMonth = month.length(currentDate.isLeapYear)
     val emptyCells = firstDayOfMonth.dayOfWeek.ordinal
-    val days = mutableListOf<String>().apply {
-
+    val days = buildList {
         addAll(List(emptyCells) { "" })
         addAll(List(daysInMonth) { (it + 1).toString() })
-
     }
-
 
     fun onDateClicked(day: Int) {
         val clickedDate = LocalDate.of(year, month, day)
         selectedDay.value = clickedDate
-        viewModel.fetchAttendance(stdID, clickedDate.toString())
+
+        if (accessToken != null) {
+
+            viewModel.fetchAttendance(stdID, clickedDate.toString(), accessToken =accessToken )
+        }
+
     }
 
-    LaunchedEffect(attendanceList, selectedDay.value) {
-        if (attendanceList != null) {
-            attendanceStatus = if (attendanceList!!.present == 1) "Present" else "Absent"
-            attendanceTime = attendanceList!!.created_at ?: ""
-        } else {
-            attendanceStatus = "Not Marked"
-            attendanceTime = ""
-        }
-    }
+
+    Log.d("ATTENDANCE-DETAILS",errorMessage.toString())
+//
+//    // Use this instead
+//    attendanceList?.let {
+//        attendanceStatus = when (it.present) {
+//            1 -> "Present"
+//            0 -> "Absent"
+//            else -> "Not Marked"
+//        }
+//        attendanceTime = it.created_at ?: ""
+//    } ?: run {
+//        attendanceStatus = "Not Marked"
+//        attendanceTime = ""
+//    }
+
+
+
+
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(0xFFF8F9FA))
             .padding(16.dp)
     ) {
-        // Header
+
+
+        // Directly derive attendanceStatus and attendanceTime
+        val attendanceStatus = when {
+            attendanceList == null -> "Not Marked"
+            attendanceList!!.present == 1 -> "Present"
+            attendanceList!!.present == 0 -> "Absent"
+            else -> "Not Marked"
+        }
+
+        val attendanceTime = attendanceList?.created_at ?: ""
+
+
+
+        // ✅ Header with Student info
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-
             image.value?.let {
                 Image(
                     bitmap = it.asImageBitmap(),
                     contentDescription = "Student Image",
                     modifier = Modifier
-                        .size(80.dp)
+                        .size(72.dp)
                         .clip(CircleShape)
-                        .background(Color.Gray)
+                        .background(Color.LightGray)
                 )
-
-            } ?: Text("Invalid Image")
-
-
-        }
-        Spacer(modifier = Modifier.width(8.dp))
-
-
-        Column {
-            Text(text = userName, style = MaterialTheme.typography.h6)
-            Text(text = secShared.toString(), style = MaterialTheme.typography.body2)
-        }
-
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Attendance Summary
-        Text(
-            text = "Today's Attendance",
-            style = MaterialTheme.typography.body1
-        )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box(
+            } ?: Box(
                 modifier = Modifier
-                    .size(24.dp)
-                    .background(Color.Green, shape = CircleShape)
-            )
-            Text(
-                text = attendanceStatus,
-                style = MaterialTheme.typography.h6,
-                color = Color.Green
-            )
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(Color.Gray),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("N/A", color = Color.White)
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column {
+                Text(
+                    text = studentName,
+                    style = MaterialTheme.typography.h6.copy(fontWeight = FontWeight.Bold)
+                )
+                Text(
+                    text = "Attendance Overview",
+                    style = MaterialTheme.typography.body2,
+                    color = Color.Gray
+                )
+            }
         }
 
-        if (attendanceTime.isNotBlank()) {
-            Text(
-                text = attendanceTime,
-                style = MaterialTheme.typography.body2,
-                color = Color.Gray
-            )
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ✅ Today's Attendance Card
+        Card(
+            shape = MaterialTheme.shapes.medium,
+            elevation = 6.dp,
+            backgroundColor = Color.White,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Today's Attendance",
+                    style = MaterialTheme.typography.subtitle1.copy(fontWeight = FontWeight.Bold)
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .background(
+                                when (attendanceStatus) {
+                                    "Present" -> Color(0xFF4CAF50)
+                                    "Absent" -> Color(0xFFE53935)
+                                    else -> Color.Gray
+                                },
+                                CircleShape
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = attendanceStatus,
+                        style = MaterialTheme.typography.body1,
+                        color = when (attendanceStatus) {
+                            "Present" -> Color(0xFF4CAF50)
+                            "Absent" -> Color(0xFFE53935)
+                            else -> Color.Gray
+                        }
+                    )
+                }
+
+                if (attendanceTime.isNotBlank()) {
+                    Text(
+                        text = attendanceTime,
+                        style = MaterialTheme.typography.body2,
+                        color = Color.DarkGray
+                    )
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Calendar Header
+        // ✅ Calendar Header
         Text(
             text = "Attendance Summary",
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFFCCCCCC))
-                .padding(5.dp),
-            style = MaterialTheme.typography.h6,
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.subtitle1.copy(fontWeight = FontWeight.Bold),
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Month navigation
+        // ✅ Month navigation
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = {
-                selectedDate.value = currentDate.minusMonths(1)
-            }) {
+            IconButton(onClick = { selectedDate.value = currentDate.minusMonths(1) }) {
                 Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous")
             }
-            Text(text = "$monthName $year", style = MaterialTheme.typography.h6)
-            IconButton(onClick = {
-                selectedDate.value = currentDate.plusMonths(1)
-            }) {
+            Text(
+                text = "$monthName $year",
+                style = MaterialTheme.typography.h6.copy(fontWeight = FontWeight.Bold)
+            )
+            IconButton(onClick = { selectedDate.value = currentDate.plusMonths(1) }) {
                 Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next")
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Day labels
+        // ✅ Day labels
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceAround
         ) {
             DayOfWeek.values().forEach {
                 Text(
-                    text = it.getDisplayName(java.time.format.TextStyle.FULL, Locale.getDefault()),
-                    modifier = Modifier.weight(1f),
+                    text = it.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()),
+                    style = MaterialTheme.typography.caption,
                     textAlign = TextAlign.Center
                 )
             }
         }
 
-        // Calendar grid
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // ✅ Calendar Grid
         LazyVerticalGrid(
             columns = GridCells.Fixed(7),
             modifier = Modifier.fillMaxWidth()
@@ -240,77 +304,85 @@ fun AttendanceScreen(studentDetailsViewModel: StudentDetailsViewModel,
                 Box(
                     modifier = Modifier
                         .padding(4.dp)
-                        .size(40.dp)
+                        .size(42.dp)
+                        .clip(CircleShape)
                         .background(
                             when {
                                 day.isEmpty() -> Color.Transparent
                                 selectedDay.value.dayOfMonth.toString() == day &&
                                         selectedDay.value.month == month &&
-                                        selectedDay.value.year == year -> Color.Cyan
-
+                                        selectedDay.value.year == year -> Color(0xFF90CAF9)
                                 LocalDate.now().dayOfMonth.toString() == day &&
                                         LocalDate.now().month == month &&
-                                        LocalDate.now().year == year -> Color.LightGray
-
-                                else -> Color.Gray
-                            },
-                            shape = MaterialTheme.shapes.small
-                        )
-                        .clickable {
-                            if (day.isNotEmpty()) {
-                                onDateClicked(day.toInt())
+                                        LocalDate.now().year == year -> Color(0xFFE0E0E0)
+                                else -> Color.White
                             }
-                        },
+                        )
+                        .clickable { if (day.isNotEmpty()) onDateClicked(day.toInt()) },
                     contentAlignment = Alignment.Center
                 ) {
                     if (day.isNotEmpty()) {
-                        Text(text = day)
+                        Text(
+                            text = day,
+                            style = MaterialTheme.typography.body2.copy(
+                                fontWeight = if (selectedDay.value.dayOfMonth.toString() == day) FontWeight.Bold else FontWeight.Normal
+                            )
+                        )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // Legend
+        // ✅ Legend
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             listOf(
-                "Present" to Color.Green,
-                "Absent" to Color.Red,
-                "Late" to Color.Yellow
+                "Present" to Color(0xFF4CAF50),
+                "Absent" to Color(0xFFE53935),
+                "Late" to Color(0xFFFFC107)
             ).forEach { (label, color) ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(24.dp)
-                            .background(color, shape = CircleShape)
+                            .size(14.dp)
+                            .clip(CircleShape)
+                            .background(color)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = label)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = label, style = MaterialTheme.typography.caption)
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Loading Indicator
+        // ✅ Loading
         if (isLoading) {
-            CircularProgressIndicator()
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
         }
 
-        // Error message (optional)
+        // ✅ Error
         errorMessage?.let {
             if (it.isNotBlank()) {
-                attendanceStatus = "Not Marked"
+                showError = true
             }
         }
+
+        // Show the dialog
+        if (showError) {
+            errorMessage?.let {
+                AutoDismissAttendanceErrorDialog(
+                    errorMessage = it,
+                    durationMillis = 2000,
+                    onDismiss = { showError = false }
+                )
+            }
+        }
+
+
     }
 }
-
-
-
-
-

@@ -1,8 +1,11 @@
 package com.example.myapplication.screens.home.dashboard
 
+import MostRecentNotif
+import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -37,7 +40,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.myapplication.R
-import com.example.myapplication.network.GetStudentByEmail
 import com.example.myapplication.screens.components.DemoFaceItem
 import com.example.myapplication.screens.components.StudentItems
 import com.example.myapplication.screens.home.dashboard.attandance_summary_screen.AttendanceScreen
@@ -45,99 +47,200 @@ import com.example.myapplication.viewModels.StudentDetailsViewModel
 import com.example.myapplication.utility.SecurePrefsManager
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SentimentVeryDissatisfied
 import androidx.compose.material3.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import com.example.myapplication.local.repository.decodeBase64ToBitmap
+import com.example.myapplication.network.GetStudentByParentCode
 import kotlinx.coroutines.delay
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DashboardScreen() {
     val dashboardNavController = rememberNavController()
     val secPref = SecurePrefsManager
     val context = LocalContext.current
     val faceViewModel: StudentDetailsViewModel = viewModel()
-    val email = secPref.getEmail(context)
+    val parentCode = secPref.getParentCode(context)
+    val accessToken = secPref.getToken(context)
 
     var seconds by remember { mutableStateOf(0) }
     var showProgress by remember { mutableStateOf(true) }
 
     val faces by faceViewModel.faces.observeAsState(emptyList())
-
     val error by faceViewModel.error.observeAsState()
 
-    Log.d("---------------- ->", "$email")
-
-
-    // Trigger fetch once
+    // Fetch data once
     LaunchedEffect(Unit) {
-        if (faces.isEmpty()) {
-            Log.d("Shared Pref Email ->", "$email")
-            faceViewModel.fetchFaceData(GetStudentByEmail(email))
+        if (faces.isEmpty() && accessToken != null) {
+            faceViewModel.fetchFaceData(GetStudentByParentCode(parentCode), accessToken)
         }
     }
 
-    // Timer that runs for 5 seconds
+    // Timer → show loader for 5 sec
     LaunchedEffect(Unit) {
-        delay(5000L)
+        delay(3000L)
         seconds = 5
         showProgress = false
     }
 
     NavHost(navController = dashboardNavController, startDestination = "dashboard_list") {
         composable("dashboard_list") {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFF7F9FC)) // Softer bg
+                    .padding(WindowInsets.systemBars.asPaddingValues())
+            ) {
+                Scaffold(
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    containerColor = Color.Transparent
+                ) { innerPadding ->
 
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    ) {
+                        when {
+                            showProgress -> {
+                                // 🔹 Animated Loading
+                                Column(
+                                    modifier = Modifier.align(Alignment.Center),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    CircularProgressIndicator(
+                                        strokeWidth = 5.dp,
+                                        color = Color(0xFF1E88E5),
+                                        modifier = Modifier
+                                            .size(60.dp)
+                                            .animateContentSize()
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Loading students...",
+                                        fontSize = 14.sp,
+                                        color = Color.Gray,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
 
-            Scaffold(
+                            error != null || (faces.isEmpty() && seconds >= 5) -> {
+                                // 🔹 Fade-in Empty State
+                                AnimatedVisibility(
+                                    visible = true,
+                                    enter = fadeIn(animationSpec = tween(600)),
+                                    exit = fadeOut()
+                                ) {
+                                    EmptyChildStateScreen()
+                                }
+                            }
 
-            ) { innerPadding ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                ) {
-                    when {
-                        showProgress -> {
-                            // While waiting (5 seconds), show a loading spinner
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                        }
-
-                        error != null || (faces.isEmpty() && seconds >= 5) -> {
-                            // After 5 seconds: if error or no data → show empty state
-                            EmptyChildStateScreen()
-                        }
-
-                        else -> {
-                            // Success case: display faces list
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(
-                                    items = faces,
-                                    key = { it.std_id!! }
-                                ) { face ->
-                                    StudentItems(face = face) {
-
-                                        face.image?.let { it1 ->
-                                            decodeBase64ToBitmap(
-                                                it1
+                            else -> {
+                                // 🔹 Animated Success Layout
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(8.dp)
+                                ) {
+                                    // 🔹 Animated Header
+                                    AnimatedVisibility(
+                                        visible = true,
+                                        enter = slideInVertically(initialOffsetY = { -40 }) + fadeIn(),
+                                        exit = fadeOut()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(
+                                                    brush = Brush.horizontalGradient(
+                                                        listOf(Color(0xFF1E3C72), Color(0xFF2A5298))
+                                                    )
+                                                )
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Students",
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
                                             )
-                                        }?.let { it2 -> faceViewModel.setStudentImage(it2) }
-                                        dashboardNavController.navigate(
-                                            "attendance_screen/${face.full_name}/${face.std_id}"
-                                        )
+                                            TextButton(onClick = { /* your see all action */ }) {
+                                                Text(
+                                                    text = "See All",
+                                                    fontSize = 14.sp,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    // 🔹 Animated Student List
+                                    LazyRow(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(5.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        items(
+                                            items = faces,
+                                            key = { it.id!! }
+                                        ) { face ->
+                                            AnimatedVisibility(
+                                                visible = true,
+                                                enter = fadeIn() + scaleIn(),
+                                                exit = fadeOut()
+                                            ) {
+                                                StudentItems(face = face) {
+                                                    face.image?.let { img ->
+                                                        decodeBase64ToBitmap(img)
+                                                    }?.let { bmp ->
+                                                        faceViewModel.setStudentImage(bmp)
+                                                    }
+                                                    dashboardNavController.navigate(
+                                                        "attendance_screen/${face.full_name}/${face.id}"
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    // 🔹 Slide-in Notifications
+                                    AnimatedVisibility(
+                                        visible = true,
+                                        enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+                                        exit = fadeOut()
+                                    ) {
+                                        MostRecentNotif()
                                     }
                                 }
                             }
@@ -146,10 +249,6 @@ fun DashboardScreen() {
                 }
             }
         }
-
-
-
-
 
         composable(
             route = "attendance_screen/{studentName}/{stdID}",
@@ -162,14 +261,12 @@ fun DashboardScreen() {
             val stdID = backStackEntry.arguments?.getInt("stdID")
 
             if (userName != null && stdID != null) {
-                AttendanceScreen( faceViewModel,userName, stdID)
+                AttendanceScreen(faceViewModel, userName, stdID)
             }
         }
-
-
-
     }
 }
+
 
 
 

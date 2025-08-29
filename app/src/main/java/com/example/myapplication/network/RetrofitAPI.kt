@@ -6,25 +6,20 @@ import retrofit2.Call
 import okhttp3.ResponseBody
 import retrofit2.http.Headers
 import com.example.myapplication.BuildConfig
-
+import retrofit2.http.Header
 
 
 interface ApiService {
-    @Headers("api_key: DIT-APPpnqupjT2JuCE7pJKQzlFku6hiIvIMpFfNpJ4anaDkAsIQTI3Oghw2YHyz9XJA693")
-    @POST("/api/login.php") // Replace with your endpoint
+
+    @POST("login+saveFCMToken.php") // Replace with your endpoint
     fun loginParents(@Body request: LoginRequestData): Call<ResponseBody> // or suspend fun for coroutine
 
-    @Headers("api_key: DIT-APPpnqupjT2JuCE7pJKQzlFku6hiIvIMpFfNpJ4anaDkAsIQTI3Oghw2YHyz9XJA693")
-    @POST("/api/get_student_by_email.php") // Replace with your endpoint
-    fun getStudentByEmail(@Body request: GetStudentByEmail): Call<ResponseBody> // or suspend fun for coroutine
+    @POST("get_student_by_parent_code_tenant.php",)
+    // Replace with your endpoint
+    fun getStudentByParentID(@Body request: GetStudentByParentCode,@Header("Authorization") token: String): Call<ResponseBody> // or suspend fun for coroutine
 
-    @Headers("api_key: DIT-APPpnqupjT2JuCE7pJKQzlFku6hiIvIMpFfNpJ4anaDkAsIQTI3Oghw2YHyz9XJA693")
-    @POST("/api/get_attendance_by_std_id_and_date.php")
-    fun getAttendanceManual(@Body request: AttendanceRequest): Call<ResponseBody>
-
-    @Headers("api_key: DIT-APPpnqupjT2JuCE7pJKQzlFku6hiIvIMpFfNpJ4anaDkAsIQTI3Oghw2YHyz9XJA693")
-    @POST("/api/save_fcm_token.php")
-    fun sendFCMToken(@Body request: SendFcmToken): Call<ResponseBody>
+    @POST("get_attendance_by_stdID_date_tenant.php")
+    fun getAttendanceManual(@Body request: AttendanceRequest,@Header("Authorization") token: String): Call<ResponseBody>
 
 
 }

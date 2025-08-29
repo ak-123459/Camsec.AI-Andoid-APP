@@ -1,20 +1,26 @@
 package com.example.myapplication.screens.auth
 
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -86,6 +92,7 @@ fun AuthAppNavigator() {
 
 
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun LoginScreen(navController: NavController) {
     val viewModel: LoginViewModel = viewModel()
@@ -95,7 +102,7 @@ fun LoginScreen(navController: NavController) {
     var showDialog by remember { mutableStateOf(false) }
 
     // Remember variables for user input
-    var email by remember { mutableStateOf("") }
+    var parentCode by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val errorMessage = remember { mutableStateOf("") }
     val secPref = SecurePrefsManager
@@ -135,177 +142,194 @@ fun LoginScreen(navController: NavController) {
             onSurface = Color.White
         )
     ) {
-        // Main content of the screen
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-        ) {
-            // Logo at the top
-            Image(
-                painter = painterResource(id = R.drawable.camseclogo),
-                contentDescription = "App Logo",
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 100.dp)
-                    .size(120.dp)
-            )
 
-            Spacer(modifier = Modifier.padding(4.dp))
 
-            // Bottom card view with login form
-            // 👇 NEW: Add verticalScroll modifier
-            Column(
+
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
                     .background(Color.White)
-                    .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
-                    .padding(5.dp)
-                    .verticalScroll(scrollState) // Auto-scroll enabled
             ) {
-                Text(
-                    text = "Login",
-                    style = MaterialTheme.typography.h5.copy(color = Color.Black),
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+
+                // Main content of the screen
+
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFF2F2F2))
+                        .padding(WindowInsets.systemBars.asPaddingValues()) // Safe area for status/navigation bars
+                ) {
+
+
+                // Logo at the top
+                Image(
+                    painter = painterResource(id = R.drawable.camseclogo),
+                    contentDescription = "App Logo",
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 100.dp, bottom = 30.dp)
+                        .size(120.dp)
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.padding(40.dp))
 
-                // Email input field
-                OutlinedTextField(
-                    maxLines = 1,
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email", color = Color.Black) },
+                // Bottom card view with login form
+                // 👇 NEW: Add verticalScroll modifier
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        // 👇 NEW: Attach focus requester for keyboard navigation
-                        .focusRequester(emailFocusRequester)
-                        // 👇 NEW: Auto-scroll when focused
-                        .onGloballyPositioned { coordinates ->
-                            coroutineScope.launch {
-                                scrollState.animateScrollTo(coordinates.positionInRoot().y.toInt())
-                            }
-                        },
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = Color.Black,
-                        unfocusedBorderColor = Color.Gray,
-                        focusedLabelColor = Color.Black
-                    ),
-                    isError = errorMessage.value.isNotEmpty(),
-                    // 👇 NEW: Configure keyboard options for "Next" button
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next
-                    ),
-                    // 👇 NEW: Define action for "Next" button
-                    keyboardActions = KeyboardActions(
-                        onNext = {
-                            passwordFocusRequester.requestFocus()
-                        }
+                        .align(Alignment.Center)
+                        .background(Color.White)
+                        .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+                        .padding(5.dp)
+                        , verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Login",
+                        style = MaterialTheme.typography.h5.copy(color = Color.Black),
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
-                )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
 
-                // Password input field
-                OutlinedTextField(
-                    maxLines = 1,
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password", color = Color.Black) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        // 👇 NEW: Attach focus requester for keyboard navigation
-                        .focusRequester(passwordFocusRequester)
-                        // 👇 NEW: Auto-scroll when focused
-                        .onGloballyPositioned { coordinates ->
-                            coroutineScope.launch {
-                                scrollState.animateScrollTo(coordinates.positionInRoot().y.toInt())
+                    // Email input field
+                    OutlinedTextField(
+                        maxLines = 1,
+                        value = parentCode,
+                        onValueChange = { parentCode = it },
+                        label = { Text("Parent Code", color = Color.Black) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // 👇 NEW: Attach focus requester for keyboard navigation
+                            .focusRequester(emailFocusRequester)
+                            // 👇 NEW: Auto-scroll when focused
+                            .onGloballyPositioned { coordinates ->
+                                coroutineScope.launch {
+                                    scrollState.animateScrollTo(coordinates.positionInRoot().y.toInt())
+                                }
+                            },
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = Color.Black,
+                            unfocusedBorderColor = Color.Gray,
+                            focusedLabelColor = Color.Black
+                        ),
+                        isError = errorMessage.value.isNotEmpty(),
+                        // 👇 NEW: Configure keyboard options for "Next" button
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        // 👇 NEW: Define action for "Next" button
+                        keyboardActions = KeyboardActions(
+                            onNext = {
+                                passwordFocusRequester.requestFocus()
+                            }
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Password input field
+                    OutlinedTextField(
+                        maxLines = 1,
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password", color = Color.Black) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // 👇 NEW: Attach focus requester for keyboard navigation
+                            .focusRequester(passwordFocusRequester)
+                            // 👇 NEW: Auto-scroll when focused
+                            .onGloballyPositioned { coordinates ->
+                                coroutineScope.launch {
+                                    scrollState.animateScrollTo(coordinates.positionInRoot().y.toInt())
+                                }
+                            },
+                        // 👇 NEW: Toggle password visibility
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = Color.Black,
+                            unfocusedBorderColor = Color.Gray,
+                            focusedLabelColor = Color.Black
+                        ),
+                        trailingIcon = {
+                            val image = if (passwordVisible)
+                                Icons.Filled.Visibility
+                            else Icons.Filled.VisibilityOff
+                            val description =
+                                if (passwordVisible) "Hide password" else "Show password"
+
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(imageVector = image, description)
                             }
                         },
-                    // 👇 NEW: Toggle password visibility
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = Color.Black,
-                        unfocusedBorderColor = Color.Gray,
-                        focusedLabelColor = Color.Black
-                    ),
-                    trailingIcon = {
-                        val image = if (passwordVisible)
-                            Icons.Filled.Visibility
-                        else Icons.Filled.VisibilityOff
-                        val description = if (passwordVisible) "Hide password" else "Show password"
-
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(imageVector = image, description)
-                        }
-                    },
-                    isError = errorMessage.value.isNotEmpty(),
-                    // 👇 NEW: Configure keyboard options for "Done" button
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done
-                    ),
-                    // 👇 NEW: Define action for "Done" button (login)
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            keyboardController?.hide()
+                        isError = errorMessage.value.isNotEmpty(),
+                        // 👇 NEW: Configure keyboard options for "Done" button
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        // 👇 NEW: Define action for "Done" button (login)
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                keyboardController?.hide()
 
                                 login(
-                                    email,
+                                    parentCode,
                                     password,
                                     viewModel,
                                     errorMessage,
                                     secPref,
                                     context,
-                                    activity,fcmToken
+                                    activity, fcmToken
                                 )
 
 
-                        }
+                            }
+                        )
                     )
-                )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Display error message if any
-                if (errorMessage.value.isNotEmpty()) {
-                    Text(
-                        text = errorMessage.value,
-                        color = MaterialTheme.colors.error,
-                        style = MaterialTheme.typography.body2,
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    )
                     Spacer(modifier = Modifier.height(8.dp))
-                }
 
-                // Login Button
-                Button(
-                    onClick = {
-                        keyboardController?.hide()
+                    // Display error message if any
+                    if (errorMessage.value.isNotEmpty()) {
+                        Text(
+                            text = errorMessage.value,
+                            color = MaterialTheme.colors.error,
+                            style = MaterialTheme.typography.body2,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // Login Button
+                    Button(
+                        onClick = {
+                            keyboardController?.hide()
 
 
                             login(
-                                email,
+                                parentCode,
                                 password,
                                 viewModel,
                                 errorMessage,
                                 secPref,
                                 context,
-                                activity,fcmToken
+                                activity, fcmToken
                             )
 
-                                         },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.Black)
-                ) {
-                    Text("Login", color = Color.White)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(backgroundColor = Color.Black)
+                    ) {
+                        Text("Login", color = Color.White)
+                    }
+
+
                 }
 
 
             }
+
         }
     }
 
@@ -322,7 +346,7 @@ fun LoginScreen(navController: NavController) {
 }
 
 private fun login(
-    email: String,
+    parentCode: String,
     password: String,
     viewModel: LoginViewModel,
     errorMessage: MutableState<String>,
@@ -331,7 +355,7 @@ private fun login(
     activity: Activity?,
     fcmToken: String
 ) {
-    if (email.isBlank() || password.isBlank()) {
+    if (parentCode.isBlank() || password.isBlank()) {
         errorMessage.value = "Please fill in both fields."
         return
     }
@@ -346,16 +370,16 @@ private fun login(
 
     // Trigger login with FCM token
     viewModel.loginUser(
-        LoginRequestData(email = email, password_hash = password),
-        fcmToken
+        LoginRequestData(parent_code = parentCode, password_hash = password,fcmToken)
     )
 
     // 👇 Observe login result and navigate only on success.
     viewModel.loginResult.observeForever { user ->
+
         if (user != null) {
             // Save preferences
-            secPref.saveToken(context, "TOKEN") // Replace with actual token if needed
-            secPref.saveEmail(context, email)
+            user.access_token?.let { secPref.saveToken(context, it) }
+            secPref.saveParentCode(context, parentCode)
             secPref.saveFullName(context, user.full_name ?: "")
 
             Log.d("LOGIN", "Login successful: ${user.full_name}")
@@ -363,6 +387,7 @@ private fun login(
             // Navigate to HomeActivity
             context.startActivity(Intent(context, HomeActivity::class.java))
             activity?.finish()
+
         }
     }
 

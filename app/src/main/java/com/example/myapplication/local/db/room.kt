@@ -20,7 +20,8 @@ data class NotificationEntity(
     val title: String?,
     val body: String?,
     val timestamp: Long,
-    val isRead: Boolean = false)
+    val isRead: Boolean = false,
+    )
 
 
 

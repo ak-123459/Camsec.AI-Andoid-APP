@@ -35,6 +35,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.myapplication.local.db.DatabaseProvider
 import com.example.myapplication.local.db.NotificationEntity
 import com.example.myapplication.screens.auth.AuthAppNavigator
+import com.example.myapplication.screens.components.SplashScreen
 import com.example.myapplication.screens.home.MyApp
 import kotlinx.coroutines.delay
 import com.example.myapplication.utility.SecurePrefsManager
@@ -93,15 +94,11 @@ fun AppEntryPoint() {
 
     var showSplash by remember { mutableStateOf(true) }
 
-    LaunchedEffect(Unit) {
-        delay(2000) // Show splash for 2 seconds
-        showSplash = false
 
-    }
 
     if (showSplash) {
 
-        SplashScreen()
+        SplashScreen(onSplashFinished = {showSplash=false})
     }
 
     else if(!showSplash && secPref != null){
@@ -120,19 +117,19 @@ fun AppEntryPoint() {
 
 
 
-@Composable
-fun SplashScreen(){
-
-    Column(verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
-
-        Image(painter = painterResource(R.drawable.camseclogo) , contentDescription = "camsec logo", modifier = Modifier.size(120.dp))
-
-        Spacer(modifier = Modifier.padding(10.dp))
-
-        Text("MITIGATE  MANUAL  MONITORING", fontSize = 15.sp,     fontWeight = FontWeight.Bold, letterSpacing = TextUnit(value = .2f, type = TextUnitType.Sp))
-
-    }
-
-}
+//@Composable
+//fun SplashScreen(){
+//
+//    Column(verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
+//
+//        Image(painter = painterResource(R.drawable.camseclogo) , contentDescription = "camsec logo", modifier = Modifier.size(120.dp))
+//
+//        Spacer(modifier = Modifier.padding(10.dp))
+//
+//        Text("MITIGATE  MANUAL  MONITORING", fontSize = 15.sp,     fontWeight = FontWeight.Bold, letterSpacing = TextUnit(value = .2f, type = TextUnitType.Sp))
+//
+//    }
+//
+//}
 
 
