@@ -46,20 +46,18 @@ import com.example.myapplication.viewModels.StudentDetailsViewModel
 import com.example.myapplication.utility.SecurePrefsManager
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.SentimentVeryDissatisfied
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -69,9 +67,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import com.example.myapplication.local.repository.decodeBase64ToBitmap
+import com.example.myapplication.local.repository.isNetworkAvailable
 import com.example.myapplication.network.GetStudentByParentCode
+import com.example.myapplication.viewModels.DashboardUiState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
+
+
+
+@OptIn(DelicateCoroutinesApi::class)
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -83,164 +92,149 @@ fun DashboardScreen() {
     val parentCode = secPref.getParentCode(context)
     val accessToken = secPref.getToken(context)
 
-    var seconds by remember { mutableStateOf(0) }
-    var showProgress by remember { mutableStateOf(true) }
+    // 1. Rely ONLY on the uiState from the ViewModel.
+    // This is the single source of truth for your UI.
+    val uiState by faceViewModel.uiState.collectAsState()
 
-    val faces by faceViewModel.faces.observeAsState(emptyList())
-    val error by faceViewModel.error.observeAsState()
+    // 2. Create a coroutine scope for one-time events,
+    // like button clicks.
+    val scope = rememberCoroutineScope()
 
-    // Fetch data once
+    // 3. Fetch data once when the screen is first composed.
+    // The if condition handles network availability and token existence.
     LaunchedEffect(Unit) {
-        if (faces.isEmpty() && accessToken != null) {
+        if (isNetworkAvailable(context) && accessToken != null) {
             faceViewModel.fetchFaceData(GetStudentByParentCode(parentCode), accessToken)
         }
     }
 
-    // Timer → show loader for 5 sec
-    LaunchedEffect(Unit) {
-        delay(3000L)
-        seconds = 5
-        showProgress = false
-    }
 
-    NavHost(navController = dashboardNavController, startDestination = "dashboard_list") {
+
+    NavHost(
+        navController = dashboardNavController,
+        startDestination = "dashboard_list",
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF7F9FC))
+            .padding(WindowInsets.systemBars.asPaddingValues())
+    ) {
         composable("dashboard_list") {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFFF7F9FC)) // Softer bg
-                    .padding(WindowInsets.systemBars.asPaddingValues())
+            // Use a single Box with a when statement to handle all UI states.
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Scaffold(
-                    modifier = Modifier.align(Alignment.TopCenter),
-                    containerColor = Color.Transparent
-                ) { innerPadding ->
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    ) {
-                        when {
-                            showProgress -> {
-                                // 🔹 Animated Loading
-                                Column(
-                                    modifier = Modifier.align(Alignment.Center),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    CircularProgressIndicator(
-                                        strokeWidth = 5.dp,
-                                        color = Color(0xFF1E88E5),
-                                        modifier = Modifier
-                                            .size(60.dp)
-                                            .animateContentSize()
+                when (val state = uiState) {
+                    is DashboardUiState.Loading -> {
+                        // Display a loading indicator.
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(
+                                strokeWidth = 5.dp,
+                                color = Color(0xFF1E88E5),
+                                modifier = Modifier.size(60.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("Loading students...")
+                        }
+                    }
+                    is DashboardUiState.Success -> {
+                        // 4. Correctly display the LazyRow inside the Success state.
+                        val students = state.students
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Animated Header (same as before)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        brush = Brush.horizontalGradient(
+                                            listOf(Color(0xFF1E3C72), Color(0xFF2A5298))
+                                        )
                                     )
-                                    Spacer(modifier = Modifier.height(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Students",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                TextButton(onClick = { /* your see all action */ }) {
                                     Text(
-                                        text = "Loading students...",
+                                        text = "",
                                         fontSize = 14.sp,
-                                        color = Color.Gray,
+                                        color = Color.White,
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
                             }
 
-                            error != null || (faces.isEmpty() && seconds >= 5) -> {
-                                // 🔹 Fade-in Empty State
-                                AnimatedVisibility(
-                                    visible = true,
-                                    enter = fadeIn(animationSpec = tween(600)),
-                                    exit = fadeOut()
-                                ) {
-                                    EmptyChildStateScreen()
-                                }
-                            }
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                            else -> {
-                                // 🔹 Animated Success Layout
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(8.dp)
-                                ) {
-                                    // 🔹 Animated Header
-                                    AnimatedVisibility(
-                                        visible = true,
-                                        enter = slideInVertically(initialOffsetY = { -40 }) + fadeIn(),
-                                        exit = fadeOut()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(16.dp))
-                                                .background(
-                                                    brush = Brush.horizontalGradient(
-                                                        listOf(Color(0xFF1E3C72), Color(0xFF2A5298))
-                                                    )
-                                                )
-                                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Students",
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
+                            // LazyRow with student items.
+                            LazyRow(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(students, key = { it.id!! }) { face ->
+                                    StudentItems(face = face) {
+                                        // 5. Use the coroutine scope here to navigate
+                                        // or perform other suspend functions.
+                                        scope.launch {
+                                            face.image?.let { img ->
+                                                decodeBase64ToBitmap(img)
+                                            }?.let { bmp ->
+                                                faceViewModel.setStudentImage(bmp)
+                                            }
+                                            dashboardNavController.navigate(
+                                                "attendance_screen/${face.full_name}/${face.id}"
                                             )
-                                            TextButton(onClick = { /* your see all action */ }) {
-                                                Text(
-                                                    text = "See All",
-                                                    fontSize = 14.sp,
-                                                    color = Color.White,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                            }
                                         }
                                     }
-
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    // 🔹 Animated Student List
-                                    LazyRow(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(5.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        items(
-                                            items = faces,
-                                            key = { it.id!! }
-                                        ) { face ->
-                                            AnimatedVisibility(
-                                                visible = true,
-                                                enter = fadeIn() + scaleIn(),
-                                                exit = fadeOut()
-                                            ) {
-                                                StudentItems(face = face) {
-                                                    face.image?.let { img ->
-                                                        decodeBase64ToBitmap(img)
-                                                    }?.let { bmp ->
-                                                        faceViewModel.setStudentImage(bmp)
-                                                    }
-                                                    dashboardNavController.navigate(
-                                                        "attendance_screen/${face.full_name}/${face.id}"
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
                                 }
                             }
                         }
                     }
+                    is DashboardUiState.Error -> {
+                        // Display an error message with a retry button.
+                        val errorMessage = state.message
+                        ErrorOrNoInternetUI(
+                            message = errorMessage,
+                            icon = Icons.Default.Error,
+                            onRetry = {
+                                // Use the correct coroutine scope for the retry button click.
+                                scope.launch {
+                                    if (accessToken != null) {
+                                        faceViewModel.fetchFaceData(GetStudentByParentCode(parentCode), accessToken)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                    is DashboardUiState.NoInternet -> {
+                        // Display a no-internet message with a retry button.
+                        ErrorOrNoInternetUI(
+                            message = "No internet connection",
+                            icon = Icons.Default.WifiOff,
+                            onRetry = {
+                                scope.launch {
+                                    if (accessToken != null) {
+                                        faceViewModel.fetchFaceData(GetStudentByParentCode(parentCode), accessToken)
+                                    }
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
-
         composable(
             route = "attendance_screen/{studentName}/{stdID}",
             arguments = listOf(
@@ -257,6 +251,33 @@ fun DashboardScreen() {
         }
     }
 }
+
+// A reusable composable for displaying errors or no-internet messages.
+@Composable
+fun ErrorOrNoInternetUI(
+    message: String,
+    icon: ImageVector,
+    onRetry: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.Gray,
+            modifier = Modifier.size(60.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(message, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.Gray)
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(onClick = onRetry) {
+            Text("Retry")
+        }
+    }
+}
+
 
 
 

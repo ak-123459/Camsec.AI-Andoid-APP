@@ -72,10 +72,12 @@ import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.HomeActivity
 import com.example.myapplication.R
 import com.example.myapplication.firebase.getFCMToken
+import com.example.myapplication.local.repository.isNetworkAvailable
 import com.example.myapplication.network.LoginRequestData
 import com.example.myapplication.screens.components.AdvancedBlackProgressDialog
 import com.example.myapplication.utility.SecurePrefsManager
 import com.example.myapplication.viewModels.LoginViewModel
+import com.example.myapplication.viewModels.StudentDetailsViewModel
 import kotlinx.coroutines.launch
 
 
@@ -273,15 +275,26 @@ fun LoginScreen(navController: NavController) {
                             onDone = {
                                 keyboardController?.hide()
 
-                                login(
-                                    parentCode,
-                                    password,
-                                    viewModel,
-                                    errorMessage,
-                                    secPref,
-                                    context,
-                                    activity, fcmToken
-                                )
+
+
+                                if (!isNetworkAvailable(context)) {
+                                    // Show error and stop login
+                                    errorMessage.value = "\uD83D\uDEDC No internet available"
+                                } else {
+                                    // Network is available, proceed with login
+                                    login(
+                                        parentCode,
+                                        password,
+                                        viewModel,
+                                        errorMessage,
+                                        secPref,
+                                        context,
+                                        activity,
+                                        fcmToken
+                                    )
+                                }
+
+
 
 
                             }
@@ -307,15 +320,24 @@ fun LoginScreen(navController: NavController) {
                             keyboardController?.hide()
 
 
-                            login(
-                                parentCode,
-                                password,
-                                viewModel,
-                                errorMessage,
-                                secPref,
-                                context,
-                                activity, fcmToken
-                            )
+                            if (!isNetworkAvailable(context)) {
+                                // Show error and stop login
+                                errorMessage.value = "\uD83D\uDEDC No internet available"
+                            } else {
+                                // Network is available, proceed with login
+                                login(
+                                    parentCode,
+                                    password,
+                                    viewModel,
+                                    errorMessage,
+                                    secPref,
+                                    context,
+                                    activity,
+                                    fcmToken
+                                )
+                            }
+
+
 
                         },
                         modifier = Modifier.fillMaxWidth(),

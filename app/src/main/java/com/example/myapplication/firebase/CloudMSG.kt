@@ -46,32 +46,30 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         if (secSF.getParentCode(this) != null) {
 
-            // Check if notifications are enabled
-            val enabled = secSF.getNotificationsEnabled(applicationContext)
-            if (!enabled) return  // Stop processing if disabled
+
+                // Check if notifications are enabled
+                val enabled = secSF.getNotificationsEnabled(applicationContext)
+                if (!enabled) return  // Stop processing if disabled
 
 
-            // Always called, foreground or background
-            remoteMessage.data.let { data ->
-                val title = data["title"] ?: "✅ Attendance Marked..."
-                val body = data["body"] ?: "Your Attendance recorded successfully.."
 
+               val title = remoteMessage.data["title"] ?: remoteMessage.notification?.title ?: "Attendance"
+               val body  = remoteMessage.data["body"]  ?: remoteMessage.notification?.body  ?: "Marked successfully"
+
+
+                // Save in Room DB
                 val db = DatabaseProvider.getDatabase(applicationContext)
                 val notification = NotificationEntity(
                     title = title,
                     body = body,
-                    timestamp = System.currentTimeMillis())
+                    timestamp = System.currentTimeMillis()
+                )
 
-                // Save in background thread
                 CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        db.notificationDao().insert(notification)
-                        Log.d("RoomDebug", "Notification inserted: $notification")
-                    } catch (e: Exception) {
-                        Log.e("RoomDebug", "Insert failed", e)
-                    }
-
+                    db.notificationDao().insert(notification)
                 }
+
+               val notificationId = System.currentTimeMillis().toInt()
 
 
                 // Intent to open your target activity
@@ -85,8 +83,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     this,
                     0,
                     intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
 
                 // Create Notification
@@ -102,10 +99,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     val channel = NotificationChannel(
-                        channelId,
+                        notificationId.toString(),
                         "My Channel",
-                        NotificationManager.IMPORTANCE_DEFAULT
+                        NotificationManager.IMPORTANCE_HIGH
                     )
+                    channel.enableLights(true)
+                    channel.enableVibration(true)
                     manager.createNotificationChannel(channel)
                 }
 
@@ -118,7 +117,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
 
-}
 
 fun getFCMToken(onTokenReceived: (String) -> Unit) {
     FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->

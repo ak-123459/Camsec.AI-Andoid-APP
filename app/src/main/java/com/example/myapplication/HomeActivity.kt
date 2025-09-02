@@ -39,7 +39,6 @@ import com.example.myapplication.screens.components.SplashScreen
 import com.example.myapplication.screens.home.MyApp
 import kotlinx.coroutines.delay
 import com.example.myapplication.utility.SecurePrefsManager
-import com.example.myapplication.viewModels.DemoFaceDetailsViewModel
 import com.example.myapplication.viewModels.StudentDetailsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

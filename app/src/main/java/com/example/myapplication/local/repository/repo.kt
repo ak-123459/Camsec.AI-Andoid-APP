@@ -14,6 +14,10 @@ import com.example.myapplication.network.RetrofitClient
 import com.example.myapplication.network.SendFcmToken
 import retrofit2.Callback
 
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+
+
 
 fun decodeBase64ToBitmap(base64Str: String?): Bitmap? {
     return try {
@@ -72,6 +76,21 @@ fun cancelAllNotifications(context: Context) {
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     notificationManager.cancelAll()
 }
+
+
+
+fun isNetworkAvailable(context: Context): Boolean {
+    val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+    val activeNetwork = connectivityManager.activeNetwork ?: return false
+    val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+
+    return networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+}
+
 
 
 
