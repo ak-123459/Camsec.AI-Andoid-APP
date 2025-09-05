@@ -168,7 +168,7 @@ fun LoginScreen(navController: NavController) {
                     contentDescription = "App Logo",
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 100.dp, bottom = 30.dp)
+                        .padding(top = 50.dp, bottom = 30.dp)
                         .size(120.dp)
                 )
 

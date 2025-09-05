@@ -27,14 +27,15 @@ import androidx.lifecycle.viewModelScope
 import com.example.myapplication.local.db.DatabaseProvider
 import com.example.myapplication.local.db.NotificationEntity
 import com.example.myapplication.local.repository.AttendanceRepository
+import com.example.myapplication.network.AttendanceMonthly
 import com.example.myapplication.network.AttendanceResponse
+import com.example.myapplication.network.AttendanceWeekly
 import com.example.myapplication.network.GetStudentByParentCode
 import com.example.myapplication.network.LoginRequestData
 import com.example.myapplication.network.LoginResponseData
-import com.example.myapplication.network.SendFcmToken
 import com.example.myapplication.network.StudentDetails
-import com.example.myapplication.utility.SecurePrefsManager
 import com.google.firebase.auth.ActionCodeSettings
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -66,8 +67,6 @@ class StudentDetailsViewModel : ViewModel() {
 
 
 
-
-
         private val _studentImage = MutableLiveData<Bitmap>()
         val studentImage: LiveData<Bitmap> get() = _studentImage
 
@@ -84,9 +83,14 @@ class StudentDetailsViewModel : ViewModel() {
                         RetrofitClient.apiService.getStudentByParentID(request, accessToken)
 
                     if (response.isSuccessful) {
+
+
                         val rawJson = response.body()?.string() ?: ""
                         val jsonObject = JSONObject(rawJson)
                         val dataArray = jsonObject.getJSONArray("students")
+
+                        Log.d("STUDENT-DETAILS->", "Full Response  $dataArray")
+
                         val studentList = mutableListOf<StudentDetails>()
                         val gson = Gson()
 
@@ -106,7 +110,8 @@ class StudentDetailsViewModel : ViewModel() {
                 } catch (e: Exception) {
                     // Handle network failures, JSON parsing errors, etc.
                     _uiState.value =
-                        DashboardUiState.Error("Network or parsing failure: ${e.message}")
+                        DashboardUiState.Error("Network error: \uD83C\uDF10 try after sometimes..."
+                        )
                 }
             }
         }
@@ -200,12 +205,16 @@ class DemoFaceDetailsViewModel : ViewModel() {
                     response: Response<ResponseBody>
                 ) {
 
+
+
                     if (response.isSuccessful) {
                         try {
                             val responseBody = response.body()?.string()
                             val jsonObject = JSONObject(responseBody ?: "")
 
                             val success = jsonObject.optBoolean("success", false)
+                            val message = jsonObject.optString("message", "Please try again...")
+
 
 
                             if (success) {
@@ -221,7 +230,7 @@ class DemoFaceDetailsViewModel : ViewModel() {
                                 user.access_token = "Bearer $accessToken"
                                 _loginResult.postValue(user)
 
-                                Log.d("LOGIN->", "Full Response  $jsonObject")
+                                Log.d("LOGIN->", "Full Response  $userJson")
 
                                 request.parent_code?.let { Log.d("PARENT CODE IS :-> ", it) }
                                 // ✅ Send FCM token after login success
@@ -246,15 +255,18 @@ class DemoFaceDetailsViewModel : ViewModel() {
                         }
                     } else {
                         _isLoading.value = false
-                        _error.postValue("Login failed: ${response.code()}")
+                        if(response.code()==401){
+
+                            _error.postValue("Login failed: Invalid Parent Code or Password...")
+
+                        }
                         Log.e("LoginViewModel", "--+++---++>>>>>>: ${response.body()}")
                     }
 
                 }
 
-
                 override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
-                    _error.postValue("Network error: ${t.message}")
+                    _error.postValue("\uD83C\uDF10 try after sometimes... ")
                     _isLoading.value = false
                 }
             })
@@ -316,13 +328,21 @@ class DemoFaceDetailsViewModel : ViewModel() {
 
 
 
-
     class AttendanceViewModel : ViewModel() {
 
         private val repository = AttendanceRepository()
 
         private val _attendance = MutableLiveData<AttendanceResponse?>(null)
         val attendance: LiveData<AttendanceResponse?> = _attendance
+
+
+        private val _attendanceWeekly = MutableLiveData<List<AttendanceWeekly>?>(null)
+        val attendanceWeekly: LiveData<List<AttendanceWeekly>?> = _attendanceWeekly
+
+        // Monthly → list of weeks/month objects
+        private val _attendanceMonthly = MutableLiveData<List<AttendanceMonthly>?>(null)
+        val attendanceMonthly: LiveData<List<AttendanceMonthly>?> = _attendanceMonthly
+
 
         private val _isLoading = mutableStateOf(false)
         val isLoading: State<Boolean> = _isLoading
@@ -331,10 +351,11 @@ class DemoFaceDetailsViewModel : ViewModel() {
         val errorMessage: LiveData<String?> = _errorMessage
 
 
+
         fun fetchAttendance(stdId: Int, date: String, accessToken: String) {
             _isLoading.value = true
             _errorMessage.value = null
-            _attendance.value = null   // reset previous data
+            _attendanceMonthly.value = null   // reset previous data
 
 
             repository.getAttendanceManual(
@@ -388,11 +409,161 @@ class DemoFaceDetailsViewModel : ViewModel() {
 
                     override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
                         _isLoading.value = false
-                        _errorMessage.value = "Network error: ${t.message}"
+                        _errorMessage.value = "Network error: \uD83C\uDF10 try after sometimes..."
                         Log.e("ATTENDANCE_VIEWMODEL", "Failure: ${t.message}")
                     }
                 })
         }
+
+        fun loadMonthly(stdId: Int, date: String, accessToken: String) {
+            _isLoading.value = true
+            _errorMessage.value = null
+            _attendanceMonthly.value = null // reset previous data
+
+            repository.fetchMonthly(
+                stdId = stdId,
+                date = date,
+                accessToken = accessToken,
+                object : Callback<ResponseBody> {
+                    override fun onResponse(
+                        call: Call<ResponseBody>,
+                        response: Response<ResponseBody>
+                    ) {
+                        if (response.isSuccessful) {
+                            try {
+                                val responseBody = response.body()?.string()
+                                val jsonObject = JSONObject(responseBody ?: "")
+
+                                val success = jsonObject.optBoolean("success", false)
+                                Log.d("ATS-MONTHLY", "Raw response: $responseBody")
+
+                                if (success) {
+                                    val gson = Gson()
+                                    val attendanceArray = jsonObject.optJSONArray("attendance")
+
+                                    if (attendanceArray != null) {
+                                        val type = object : TypeToken<List<AttendanceMonthly>>() {}.type
+                                        val attendanceList: List<AttendanceMonthly> =
+                                            gson.fromJson(attendanceArray.toString(), type)
+
+                                        _attendanceMonthly.value = attendanceList
+                                        Log.d("ATS-MONTHLY", "Parsed monthly list: $attendanceList")
+                                    } else {
+                                        // Handle if single object comes
+                                        val attendanceJson = jsonObject.optJSONObject("attendance")
+                                        if (attendanceJson != null) {
+                                            val attendanceObj = gson.fromJson(
+                                                attendanceJson.toString(),
+                                                AttendanceMonthly::class.java
+                                            )
+
+                                            _attendanceMonthly.value = listOf(attendanceObj)
+                                            Log.d("ATS-MONTHLY", "Parsed monthly object: $attendanceObj")
+                                        }
+                                    }
+                                } else {
+                                    _errorMessage.value =
+                                        jsonObject.optString("message", "Attendance fetch failed")
+                                }
+                            } catch (e: Exception) {
+                                _errorMessage.value = "Parsing error: ${e.message}"
+                                Log.e("ATS-MONTHLY", "Parsing error: ${e.message}")
+                            } finally {
+                                _isLoading.value = false
+                            }
+                        } else {
+                            _isLoading.value = false
+                            _errorMessage.value = "Server error: ${response.code()}"
+                            Log.e("ATS-MONTHLY", "Error body: ${response.errorBody()?.string()}")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                        _isLoading.value = false
+                        _errorMessage.value = "Network error: 🌐 try again later"
+                        Log.e("ATS-MONTHLY", "Failure: ${t.message}")
+                    }
+                })
+        }
+
+        fun loadWeekly(stdId: Int, date: String, accessToken: String) {
+            _isLoading.value = true
+            _errorMessage.value = null
+            _attendanceWeekly.value = null // reset previous data
+
+            repository.fetchWeekly(
+                stdId = stdId,
+                date = date,
+                accessToken = accessToken,
+                object : Callback<ResponseBody> {
+                    override fun onResponse(
+                        call: Call<ResponseBody>,
+                        response: Response<ResponseBody>
+                    ) {
+                        if (response.isSuccessful) {
+                            try {
+                                val responseBody = response.body()?.string()
+                                val jsonObject = JSONObject(responseBody ?: "")
+
+                                val success = jsonObject.optBoolean("success", false)
+                                Log.d("ATS-WEEKLY", "Parsed: $responseBody")
+
+                                if (success) {
+                                    val gson = Gson()
+                                    val attendanceArray = jsonObject.optJSONArray("attendance")
+
+                                    if (attendanceArray != null) {
+                                        val type = object : TypeToken<List<AttendanceWeekly>>() {}.type
+                                        val attendanceList: List<AttendanceWeekly> =
+                                            gson.fromJson(attendanceArray.toString(), type)
+
+                                        _attendanceWeekly.value = attendanceList
+                                        Log.d("ATS-WEEKLY", "Parsed weekly list: $attendanceList")
+                                    } else {
+                                        val attendanceJson = jsonObject.optJSONObject("attendance")
+                                        if (attendanceJson != null) {
+                                            val attendanceObj = gson.fromJson(
+                                                attendanceJson.toString(),
+                                                AttendanceWeekly::class.java
+                                            )
+
+                                            _attendanceWeekly.value = listOf(attendanceObj)
+                                            Log.d("ATS-WEEKLY", "Parsed weekly object: $attendanceObj")
+                                        }
+                                    }
+                                } else {
+                                    val message = jsonObject.optString("message", "Attendance fetch failed")
+                                    _errorMessage.value = message
+                                    Log.e("ATS-WEEKLY", "Server responded success=false, msg=$message")
+                                }
+                            } catch (e: Exception) {
+                                _errorMessage.value = "Parsing error: ${e.message}"
+                                Log.e("ATS-WEEKLY", "Parsing error: ${e.message}")
+                            } finally {
+                                _isLoading.value = false
+                            }
+                        } else {
+                            _isLoading.value = false
+                            _errorMessage.value = "Server error: ${response.code()}"
+                            Log.e("ATS-WEEKLY", "Error body: ${response.errorBody()?.string()}")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                        _isLoading.value = false
+                        _errorMessage.value = "Network error: 🌐 try again later"
+                        Log.e("ATS-WEEKLY", "Failure: ${t.message}")
+                    }
+                })
+        }
+
+
+
+
+
+
+
+
     }
 
 

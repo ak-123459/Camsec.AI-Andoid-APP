@@ -1,3 +1,5 @@
+package com.example.myapplication.screens.home.settings
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -6,6 +8,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -15,21 +22,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
+import androidx.navigation.NavController
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@Composable
-fun TermsAndConditionsApp() {
-    MaterialTheme {
-        TermsAndConditionsScreen()
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TermsAndConditionsScreen() {
+fun TermsAndConditionsApp(navController: NavController) {
     val scrollState = rememberScrollState()
+    var showAcceptanceDialog by remember { mutableStateOf(false) }
+    var showFab by remember { mutableStateOf(false) }
+
+    // Logic to show FAB only when scrolled down
+    LaunchedEffect(scrollState.value) {
+        showFab = scrollState.value > 0
+    }
 
     Scaffold(
         topBar = {
@@ -44,39 +53,29 @@ fun TermsAndConditionsScreen() {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E3C72))
             )
         },
-        bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "By clicking 'Accept & Continue', you agree to the Terms of Use.",
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    color = Color.Gray
-                )
-                Button(
-                    onClick = { /* Handle accept action */ },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF000000))
+        floatingActionButton = {
+            if (showFab) {
+                FloatingActionButton(
+                    onClick = { showAcceptanceDialog = true },
+                    modifier = Modifier.padding(bottom = 70.dp),
+                    containerColor = Color(0xFF000000),
+                    contentColor = Color.White
                 ) {
-                    Text("Accept & Continue", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Accept"
+                    )
                 }
             }
-        }
+        },
+        floatingActionButtonPosition = FabPosition.End
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(scrollState),
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -158,7 +157,32 @@ fun TermsAndConditionsScreen() {
                 description = "For questions regarding these Terms, please contact:\nTDBPL (CAMSECAI)\nAddress: [Insert Company Address]\nEmail: info@tdbpl.com\nPhone: +91-7000258253"
             )
 
-            Spacer(modifier = Modifier.height(100.dp)) // Extra space to make content scrollable above the bottom bar
+            // A large space to ensure the list is long enough to scroll
+            Spacer(modifier = Modifier.height(300.dp))
+        }
+
+        // Acceptance Dialog
+        if (showAcceptanceDialog) {
+            AlertDialog(
+                onDismissRequest = { /* Don't dismiss on outside click */ },
+                title = {
+                    Text(text = "Terms Accepted")
+                },
+                text = {
+                    Text("Thanks for accepting the terms of use!")
+                },
+                confirmButton = {}
+            )
+
+            // Dismiss the dialog and navigate after 2 seconds
+            LaunchedEffect(Unit) {
+                delay(1500)
+                showAcceptanceDialog = false
+
+                navController.navigate("dashboard") {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
         }
     }
 }
@@ -201,8 +225,4 @@ fun SectionCard(icon: ImageVector, title: String, description: String) {
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun DefaultPreview() {
-    TermsAndConditionsApp()
-}
+// @Preview(showBackground = true, show

@@ -12,6 +12,7 @@ import com.example.myapplication.screens.home.notifications.NotificationListScre
 import com.example.myapplication.screens.settings.SettingsScreen
 import com.example.myapplication.screens.auth.LoginScreen
 import com.example.myapplication.screens.home.profile.ProfileAppNavHost
+import com.example.myapplication.screens.settings.SettingsAppNavigator
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -19,8 +20,10 @@ fun Navigation(navController: NavHostController) {
     val context = LocalContext.current.applicationContext
     NavHost(navController = navController, startDestination = "dashboard") {
         composable("dashboard") { DashboardScreen() }
-        composable("profile") { ProfileAppNavHost() }
-        composable("settings") { SettingsScreen(navController) }
+        composable("profile") { ProfileAppNavHost()
+
+        }
+        composable("settings") { SettingsAppNavigator(mainNavController = navController) }
 
     }
 

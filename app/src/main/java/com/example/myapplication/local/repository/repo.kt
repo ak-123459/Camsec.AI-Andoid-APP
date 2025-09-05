@@ -16,8 +16,9 @@ import retrofit2.Callback
 
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-
-
+import com.example.myapplication.network.AttendanceMonthly
+import com.example.myapplication.network.AttendanceWeekly
+import com.google.gson.Gson
 
 fun decodeBase64ToBitmap(base64Str: String?): Bitmap? {
     return try {
@@ -57,8 +58,30 @@ class AttendanceRepository {
     fun getAttendanceManual(stdId: Int, date: String,accessToken:String, callback: Callback<okhttp3.ResponseBody>) {
         val request = AttendanceRequest(std_id = stdId, date = date)
         val call = RetrofitClient.apiService.getAttendanceManual(request,accessToken)
-        call.enqueue(callback)
+        return call.enqueue(callback)
     }
+
+
+
+     fun fetchMonthly(stdId: Int, date: String, accessToken: String,callback: Callback<okhttp3.ResponseBody>){
+        val request = AttendanceRequest(std_id = stdId, date = date)
+
+        val response = RetrofitClient.apiService.getMonthlyAttendance(request, accessToken)
+
+        return response.enqueue(callback)
+
+    }
+
+
+    fun fetchWeekly(stdId: Int, date: String, accessToken: String,callback: Callback<okhttp3.ResponseBody>) {
+        val request = AttendanceRequest(std_id = stdId, date = date)
+        val response = RetrofitClient.apiService.getWeeklyAttendance(request, accessToken)
+
+       return response.enqueue(callback)
+    }
+
+
+
 
 
 //    fun sendFCMToken(email: String, fcm_token: String, callback: Callback<okhttp3.ResponseBody>) {

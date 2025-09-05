@@ -982,8 +982,6 @@ fun AutoDismissAttendanceErrorDialog(
 }
 
 
-
-
 @Composable
 fun SplashScreen(onSplashFinished: () -> Unit = {}) {
 
@@ -1005,80 +1003,53 @@ fun SplashScreen(onSplashFinished: () -> Unit = {}) {
         onSplashFinished()
     }
 
-    Column(
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Box(
         modifier = Modifier.fillMaxSize()
     ) {
-
-        Image(
-            painter = painterResource(R.drawable.camseclogo),
-            contentDescription = "camsec logo",
+        // Main content centered
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .size(120.dp)
-                .scale(scaleAnim)
+                .align(Alignment.Center)
                 .alpha(alphaAnim)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            "MITIGATE  MANUAL  MONITORING",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = TextUnit(0.2f, TextUnitType.Sp),
-            modifier = Modifier
                 .scale(scaleAnim)
-                .alpha(alphaAnim)
-        )
-    }
-}
-
-
-@Composable
-fun AdvancedToastMessage(
-    messageOn: String,        // message to show when notifications are ON
-    messageOff: String,       // message to show when notifications are OFF
-    notificationsEnabled: Boolean,
-    durationMillis: Long = 1500L,
-    onDismiss: () -> Unit
-) {
-    // Select message based on notificationsEnabled
-    val displayMessage = if (notificationsEnabled) messageOn else messageOff
-
-    var visible by remember { mutableStateOf(true) }
-
-    // Auto dismiss after duration
-    LaunchedEffect(key1 = displayMessage) {
-        delay(durationMillis)
-        visible = false
-        onDismiss()
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize(),
-        contentAlignment = Alignment.TopCenter
-    ) {
-        AnimatedVisibility(
-            visible = visible,
-            enter = fadeIn(),
-            exit = fadeOut()
         ) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 60.dp)
-                    .background(backgroundColor, shape = RoundedCornerShape(12.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    text = displayMessage,
-                    color = Color.Cyan,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            Image(
+                painter = painterResource(R.drawable.camseclogo),
+                contentDescription = "camsec logo",
+                modifier = Modifier.size(120.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                "MITIGATE  MANUAL  MONITORING",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = TextUnit(0.2f, TextUnitType.Sp)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                "Powered by TDBPL",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Normal
+            )
         }
+
+        // Bottom text anchored at the bottom
+        Text(
+            "Made in India",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Normal,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
+                .alpha(alphaAnim)
+                .scale(scaleAnim)
+        )
     }
 }
 

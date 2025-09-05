@@ -1,13 +1,10 @@
 package com.example.myapplication.screens.home.dashboard
 
+import AttendanceDashboard
 import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,15 +35,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.myapplication.R
-import com.example.myapplication.screens.components.DemoFaceItem
 import com.example.myapplication.screens.components.StudentItems
 import com.example.myapplication.screens.home.dashboard.attandance_summary_screen.AttendanceScreen
 import com.example.myapplication.viewModels.StudentDetailsViewModel
 import com.example.myapplication.utility.SecurePrefsManager
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
@@ -66,15 +65,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import com.example.myapplication.local.repository.decodeBase64ToBitmap
 import com.example.myapplication.local.repository.isNetworkAvailable
 import com.example.myapplication.network.GetStudentByParentCode
+import com.example.myapplication.network.StudentDetails
+import com.example.myapplication.viewModels.AttendanceViewModel
 import com.example.myapplication.viewModels.DashboardUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
@@ -85,16 +85,26 @@ import kotlinx.coroutines.launch
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DashboardScreen() {
-    val dashboardNavController = rememberNavController()
+//    val dashboardNavController = rememberNavController()
     val secPref = SecurePrefsManager
     val context = LocalContext.current
     val faceViewModel: StudentDetailsViewModel = viewModel()
     val parentCode = secPref.getParentCode(context)
     val accessToken = secPref.getToken(context)
+    val attendanceViewModel: AttendanceViewModel = viewModel()
+
+
 
     // 1. Rely ONLY on the uiState from the ViewModel.
     // This is the single source of truth for your UI.
     val uiState by faceViewModel.uiState.collectAsState()
+
+
+
+
+    // State to hold the selected student
+    var selectedStudent by remember { mutableStateOf<StudentDetails?>(null) }
+
 
     // 2. Create a coroutine scope for one-time events,
     // like button clicks.
@@ -110,15 +120,15 @@ fun DashboardScreen() {
 
 
 
-    NavHost(
-        navController = dashboardNavController,
-        startDestination = "dashboard_list",
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF7F9FC))
-            .padding(WindowInsets.systemBars.asPaddingValues())
-    ) {
-        composable("dashboard_list") {
+//    NavHost(
+//        navController = dashboardNavController,
+//        startDestination = "dashboard_list",
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .background(Color(0xFFF7F9FC))
+//            .padding(WindowInsets.systemBars.asPaddingValues())
+//    ) {
+//        composable("dashboard_list") {
             // Use a single Box with a when statement to handle all UI states.
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -137,76 +147,71 @@ fun DashboardScreen() {
                             Text("Loading students...")
                         }
                     }
+
+
                     is DashboardUiState.Success -> {
-                        // 4. Correctly display the LazyRow inside the Success state.
                         val students = state.students
+
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp),
+                            modifier = Modifier.fillMaxSize(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Animated Header (same as before)
-                            Row(
+                            // Student tabs inside a rounded Card
+                            Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(
-                                        brush = Brush.horizontalGradient(
-                                            listOf(Color(0xFF1E3C72), Color(0xFF2A5298))
-                                        )
-                                    )
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Students",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color(0xFF4D6296) // semi-transparent background
                                 )
-                                TextButton(onClick = { /* your see all action */ }) {
-                                    Text(
-                                        text = "",
-                                        fontSize = 14.sp,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // LazyRow with student items.
-                            LazyRow(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                items(students, key = { it.id!! }) { face ->
-                                    StudentItems(face = face) {
-                                        // 5. Use the coroutine scope here to navigate
-                                        // or perform other suspend functions.
-                                        scope.launch {
-                                            face.image?.let { img ->
-                                                decodeBase64ToBitmap(img)
-                                            }?.let { bmp ->
-                                                faceViewModel.setStudentImage(bmp)
-                                            }
-                                            dashboardNavController.navigate(
-                                                "attendance_screen/${face.full_name}/${face.id}"
-                                            )
+
+
+                                LazyRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    items(students, key = { it.id!! }) { face ->
+                                        StudentTab(
+                                            face = face,
+                                            isSelected = face.id == selectedStudent?.id
+                                        ) {
+                                            selectedStudent = face
+
                                         }
                                     }
                                 }
                             }
+
+                            // Conditionally render content based on selected student
+                            if (selectedStudent != null) {
+
+                                if (accessToken != null) {
+
+                                    StudentDashboardContent(student = selectedStudent!!, viewModel = attendanceViewModel,accessToken)
+
+
+                                } else{
+
+                                    Text("No Details Available...")
+                                }
+
+                            } else {
+
+                                DefaultDashboardContent()
+                            }
                         }
                     }
+
                     is DashboardUiState.Error -> {
                         // Display an error message with a retry button.
                         val errorMessage = state.message
                         ErrorOrNoInternetUI(
-                            message = errorMessage,
+                            message = "\uD83C\uDF10 Please try after sometimes...",
                             icon = Icons.Default.Error,
                             onRetry = {
                                 // Use the correct coroutine scope for the retry button click.
@@ -218,6 +223,8 @@ fun DashboardScreen() {
                             }
                         )
                     }
+
+
                     is DashboardUiState.NoInternet -> {
                         // Display a no-internet message with a retry button.
                         ErrorOrNoInternetUI(
@@ -235,22 +242,150 @@ fun DashboardScreen() {
                 }
             }
         }
-        composable(
-            route = "attendance_screen/{studentName}/{stdID}",
-            arguments = listOf(
-                navArgument("studentName") { type = NavType.StringType },
-                navArgument("stdID") { type = NavType.IntType }
-            )
-        ) { backStackEntry ->
-            val userName = backStackEntry.arguments?.getString("studentName")
-            val stdID = backStackEntry.arguments?.getInt("stdID")
+//        composable(
+//            route = "attendance_screen/{studentName}StudentDashboardContent/{stdID}",
+//            arguments = listOf(
+//                navArgument("studentName") { type = NavType.StringType },
+//                navArgument("stdID") { type = NavType.IntType }
+//            )
+//        ) { backStackEntry ->
+//            val userName = backStackEntry.arguments?.getString("studentName")
+//            val stdID = backStackEntry.arguments?.getInt("stdID")
+//
+//            if (userName != null && stdID != null) {
+//                AttendanceScreen(faceViewModel, userName, stdID)
+//            }
+//        }
+//    }
 
-            if (userName != null && stdID != null) {
-                AttendanceScreen(faceViewModel, userName, stdID)
+
+
+// Create a new composable for the content shown when a student is selected
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun StudentDashboardContent(student: StudentDetails,viewModel: AttendanceViewModel,accessToken: String) {
+
+
+    val today = java.time.LocalDate.now().toString()
+
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item {
+            Text(
+                text = "Dashboard for ${student.full_name}",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+
+        // Here you would add the specific UI for the selected student
+        // For example:
+        // AttendaAttendanceDashboardnceHistory(studentId = student.id)
+        // StudentEvents(studentId = student.id)
+    }
+
+
+    student.id?.let { AttendanceDashboard(viewModel, it,accessToken) }
+
+    Log.d("MSG-CHART","${student.id.toString()}-${accessToken}")
+
+
+}
+
+
+
+// Create a new composable for the default dashboard
+@Composable
+fun DefaultDashboardContent() {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item {
+            Text(
+                text = "Welcome to the Dashboard",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+        // Here you would add the default widgets from your original UI
+        // like "Attendance Summary", "Upcoming Events", etc.
+    }
+
+
+
+
+
+}
+
+
+
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun AttendanceScreen(
+    stdId: Int,
+    accessToken: String,
+    viewModel: AttendanceViewModel = viewModel()
+) {
+
+
+}
+
+
+
+@Composable
+fun StudentTab(face: StudentDetails, isSelected: Boolean, onClick: () -> Unit) {
+    // Animate the size and border for a smooth visual effect.
+    val animatedImageSize by animateDpAsState(targetValue = if (isSelected) 130.dp else 90.dp, label = "image_size")
+    val animatedBorderWidth by animateDpAsState(targetValue = if (isSelected) 6.dp else 3.dp, label = "border_width")
+
+    Column(
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Display the student's image from the Base64 string
+        face.image?.let { base64Image ->
+            val bitmap = remember(base64Image) { decodeBase64ToBitmap(base64Image) }
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "Profile picture of ${face.full_name}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(animatedImageSize)
+                        .clip(CircleShape)
+                        .border(
+                            width = animatedBorderWidth,
+                            color = if (isSelected) Color.Cyan else Color.White,
+                            shape = CircleShape
+                        )
+                        .background(Color.White)
+                )
             }
         }
+
+        // Add a space between the image and the text.
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Display the student's name
+        Text(
+            text = face.full_name ?: "Student",
+            fontSize = 16.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            textAlign = TextAlign.Center,
+            color = if (isSelected) Color.Yellow else MaterialTheme.colorScheme.onPrimary
+        )
+
+
     }
 }
+
+
+
+
+
+
 
 // A reusable composable for displaying errors or no-internet messages.
 @Composable

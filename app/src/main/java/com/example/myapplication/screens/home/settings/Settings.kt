@@ -1,7 +1,9 @@
 package com.example.myapplication.screens.settings
 
 import android.app.Activity
+import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -22,13 +24,67 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.App.Companion.context
+import com.example.myapplication.MainActivity
 import com.example.myapplication.R
 import com.example.myapplication.local.repository.cancelAllNotifications
+import com.example.myapplication.screens.auth.AuthAppNavigator
 import com.example.myapplication.screens.components.AppDetailsBottomSheet
+import com.example.myapplication.screens.home.profile.ProfileScreen
+import com.example.myapplication.screens.home.settings.AboutScreen
+import com.example.myapplication.screens.home.settings.TermsAndConditionsApp
 import com.example.myapplication.utility.SecurePrefsManager
 import com.example.myapplication.utility.logoutUser
+import com.example.myapplication.viewModels.NotificationViewModel
+import com.example.myapplication.viewModels.NotificationViewModelFactory
+
+
+@Composable
+fun SettingsAppNavigator(navController: NavHostController = rememberNavController(),mainNavController: NavController) {
+
+    val context = LocalContext.current.applicationContext as Application
+
+    val viewModel: NotificationViewModel = viewModel(
+        factory = NotificationViewModelFactory(context)
+    )
+
+    viewModel.logAllNotifications()
+
+    NavHost(navController = navController, startDestination = "settings_screen") {
+
+        // Profile screen
+        composable("settings_screen") {
+            SettingsScreen(navController)
+        }
+
+        composable("login") {
+
+            AuthAppNavigator()
+        }
+
+        composable("privacy") {
+
+            TermsAndConditionsApp(mainNavController)
+        }
+
+
+        composable("about") {
+
+            AboutScreen()
+        }
+
+    }
+}
+
+
+
+
 
 
 
@@ -72,7 +128,7 @@ fun SettingsScreen(navController: NavController) {
                 enter = fadeIn(animationSpec = tween(500)) + slideInHorizontally(initialOffsetX = { -80 }),
                 exit = fadeOut()
             ) {
-                SettingsList(onAboutClick = { bottomSheetState = true }, authShardPref)
+                SettingsList(onAboutClick = { bottomSheetState = true }, authShardPref,navController)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -95,11 +151,10 @@ fun SettingsScreen(navController: NavController) {
 
 @Composable
 fun SettingsList(onAboutClick: () -> Unit,secSharedPreferences:
-SecurePrefsManager) {
+SecurePrefsManager,navController: NavController) {
     val settings = listOf(
         SettingItem("Notifications", Icons.Default.Notifications),
         SettingItem("Privacy", Icons.Default.Lock),
-        SettingItem("Account", Icons.Default.AccountCircle),
         SettingItem("About", ImageVector.vectorResource(R.drawable.about)),
     )
 
@@ -112,22 +167,70 @@ SecurePrefsManager) {
                         slideInVertically(initialOffsetY = { 40 }),
                 exit = fadeOut()
             ) {
-                SettingItemCard(setting, onAboutClick,secSharedPreferences)
+                SettingItemCard(setting, onAboutClick,secSharedPreferences, navController =navController )
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun SettingItemCard(setting: SettingItem, onAboutClick: () -> Unit,secSharedPreferences: SecurePrefsManager) {
+fun SettingItemCard(setting: SettingItem, onAboutClick: () -> Unit,secSharedPreferences: SecurePrefsManager,navController: NavController) {
     var isToggled by remember { mutableStateOf(false) }
 
     var notificationsEnabled by remember {
         mutableStateOf(secSharedPreferences.getNotificationsEnabled(context))
     }
 
-    Card(
+    var dialogTitle by remember { mutableStateOf("") }
+    var dialogMessage by remember { mutableStateOf("") }
+    var showInfoDialog by remember { mutableStateOf(false) }
+
+
+    if (showInfoDialog) {
+        AlertDialog(
+            onDismissRequest = { showInfoDialog = false },
+            title = { androidx.compose.material3.Text(dialogTitle) },
+            text = { androidx.compose.material3.Text(dialogMessage) },
+            confirmButton = {
+                TextButton(onClick = { showInfoDialog = false }) {
+                    androidx.compose.material3.Text("OK")
+                }
+            }
+        )
+    }
+
+
+
+
+    Card(onClick = {
+
+
+        when (setting.title) {
+
+            "Privacy" -> {
+
+                navController.navigate("privacy"){
+
+                    popUpTo(0) { inclusive = true }
+
+                }
+
+            }
+
+            "About" -> {
+
+                navController.navigate("about"){
+                    popUpTo(0) { inclusive = true }
+
+
+                }
+
+
+            }
+        }
+    },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = 6.dp,
@@ -195,6 +298,8 @@ fun SettingItemCard(setting: SettingItem, onAboutClick: () -> Unit,secSharedPref
 
         }
     }
+
+
 }
 
 

@@ -99,6 +99,7 @@ dependencies {
     kapt(libs.androidx.room.compiler) // ✅ Room annotation processor
     implementation(libs.material3)
     implementation(libs.coil.compose)
+    implementation(libs.compose.m3)
 
 
 

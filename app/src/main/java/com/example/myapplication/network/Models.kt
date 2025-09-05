@@ -72,6 +72,11 @@ data class AttendanceRequest(
 )
 
 
+
+
+
+
+
 data class AttendanceResponse(
     val present: Int?,
     val created_at:String?,
@@ -94,3 +99,27 @@ data class  SendFcmToken(
 )
 
 
+data class AttendanceMonthly(
+    val month_name: String?,
+    val total_days_present: Int,
+    val year :String?,
+    val month_number:Int?
+)
+
+
+
+data class AttendanceWeekly(
+    val day_name: String,
+    val present: Boolean
+)
+
+
+data class AttendanceMonthlyResponse(
+    val success: Boolean,
+    val attendance: List<AttendanceMonthly>?
+)
+
+data class AttendanceWeeklyResponse(
+    val success: Boolean,
+    val attendance: List<AttendanceWeekly>?
+)

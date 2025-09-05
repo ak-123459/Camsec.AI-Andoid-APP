@@ -5,6 +5,7 @@ import retrofit2.http.POST
 import retrofit2.Call
 import okhttp3.ResponseBody
 import retrofit2.Response
+import retrofit2.http.GET
 import retrofit2.http.Header
 
 
@@ -20,7 +21,14 @@ interface ApiService {
     @POST("get_attendance_by_stdID_date_tenant.php")
      fun getAttendanceManual(@Body request: AttendanceRequest,@Header("Authorization") token: String): Call<ResponseBody>
 
+    @POST("attendance/monthly.php")
+      fun getMonthlyAttendance(@Body request: AttendanceRequest,@Header("Authorization") token: String):  Call<ResponseBody>
+
+    @POST("attendance/weekly.php")
+     fun getWeeklyAttendance(@Body request: AttendanceRequest,@Header("Authorization") token: String):  Call<ResponseBody>
+
 }
+
 
 
 
