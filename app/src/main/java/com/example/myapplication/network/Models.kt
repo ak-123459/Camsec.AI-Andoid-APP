@@ -75,8 +75,6 @@ data class AttendanceRequest(
 
 
 
-
-
 data class AttendanceResponse(
     val present: Int?,
     val created_at:String?,
@@ -107,10 +105,26 @@ data class AttendanceMonthly(
 )
 
 
+data class AttendMonthlySummary(
+    val present_count: Int?,
+    val absent_count: Int?,
+)
+
 
 data class AttendanceWeekly(
-    val day_name: String,
-    val present: Boolean
+    val date: String,
+    val day_name:String,
+    val status: Boolean
+)
+
+data class QueryDayStats(
+    val success: Boolean,
+    val message: String?,
+    val attendance: AttendanceDetail?
+)
+
+data class AttendanceDetail(
+    val present: Int?
 )
 
 

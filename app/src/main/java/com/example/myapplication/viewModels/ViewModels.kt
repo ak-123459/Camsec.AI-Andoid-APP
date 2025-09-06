@@ -27,12 +27,14 @@ import androidx.lifecycle.viewModelScope
 import com.example.myapplication.local.db.DatabaseProvider
 import com.example.myapplication.local.db.NotificationEntity
 import com.example.myapplication.local.repository.AttendanceRepository
+import com.example.myapplication.network.AttendMonthlySummary
 import com.example.myapplication.network.AttendanceMonthly
 import com.example.myapplication.network.AttendanceResponse
 import com.example.myapplication.network.AttendanceWeekly
 import com.example.myapplication.network.GetStudentByParentCode
 import com.example.myapplication.network.LoginRequestData
 import com.example.myapplication.network.LoginResponseData
+import com.example.myapplication.network.QueryDayStats
 import com.example.myapplication.network.StudentDetails
 import com.google.firebase.auth.ActionCodeSettings
 import com.google.gson.reflect.TypeToken
@@ -336,14 +338,6 @@ class DemoFaceDetailsViewModel : ViewModel() {
         val attendance: LiveData<AttendanceResponse?> = _attendance
 
 
-        private val _attendanceWeekly = MutableLiveData<List<AttendanceWeekly>?>(null)
-        val attendanceWeekly: LiveData<List<AttendanceWeekly>?> = _attendanceWeekly
-
-        // Monthly → list of weeks/month objects
-        private val _attendanceMonthly = MutableLiveData<List<AttendanceMonthly>?>(null)
-        val attendanceMonthly: LiveData<List<AttendanceMonthly>?> = _attendanceMonthly
-
-
         private val _isLoading = mutableStateOf(false)
         val isLoading: State<Boolean> = _isLoading
 
@@ -351,11 +345,20 @@ class DemoFaceDetailsViewModel : ViewModel() {
         val errorMessage: LiveData<String?> = _errorMessage
 
 
+        private val _weeklyStats = MutableLiveData<List<AttendanceWeekly?>?>()
+        val weeklyStats: LiveData<List<AttendanceWeekly?>?> = _weeklyStats
+
+        private val _queryDayStats = MutableLiveData<QueryDayStats?>()
+        val queryDayStats: LiveData<QueryDayStats?> = _queryDayStats
+
+        private val _monthlySummary = MutableLiveData<AttendMonthlySummary?>(null)
+
+        val monthlySummary: LiveData<AttendMonthlySummary?> = _monthlySummary
 
         fun fetchAttendance(stdId: Int, date: String, accessToken: String) {
             _isLoading.value = true
             _errorMessage.value = null
-            _attendanceMonthly.value = null   // reset previous data
+            _attendance.value = null   // reset previous data
 
 
             repository.getAttendanceManual(
@@ -415,12 +418,15 @@ class DemoFaceDetailsViewModel : ViewModel() {
                 })
         }
 
-        fun loadMonthly(stdId: Int, date: String, accessToken: String) {
+        fun fetchAttendancesStats(stdId: Int, date: String, accessToken: String) {
             _isLoading.value = true
             _errorMessage.value = null
-            _attendanceMonthly.value = null // reset previous data
+            _weeklyStats.value = null   // reset
+            _queryDayStats.value = null   // reset
+            _monthlySummary.value = null
+            _attendance.value = null
 
-            repository.fetchMonthly(
+            repository.fetchAttendStats(
                 stdId = stdId,
                 date = date,
                 accessToken = accessToken,
@@ -433,134 +439,76 @@ class DemoFaceDetailsViewModel : ViewModel() {
                             try {
                                 val responseBody = response.body()?.string()
                                 val jsonObject = JSONObject(responseBody ?: "")
-
                                 val success = jsonObject.optBoolean("success", false)
-                                Log.d("ATS-MONTHLY", "Raw response: $responseBody")
 
                                 if (success) {
                                     val gson = Gson()
-                                    val attendanceArray = jsonObject.optJSONArray("attendance")
 
-                                    if (attendanceArray != null) {
-                                        val type = object : TypeToken<List<AttendanceMonthly>>() {}.type
-                                        val attendanceList: List<AttendanceMonthly> =
-                                            gson.fromJson(attendanceArray.toString(), type)
-
-                                        _attendanceMonthly.value = attendanceList
-                                        Log.d("ATS-MONTHLY", "Parsed monthly list: $attendanceList")
-                                    } else {
-                                        // Handle if single object comes
-                                        val attendanceJson = jsonObject.optJSONObject("attendance")
-                                        if (attendanceJson != null) {
-                                            val attendanceObj = gson.fromJson(
-                                                attendanceJson.toString(),
-                                                AttendanceMonthly::class.java
-                                            )
-
-                                            _attendanceMonthly.value = listOf(attendanceObj)
-                                            Log.d("ATS-MONTHLY", "Parsed monthly object: $attendanceObj")
-                                        }
+                                    // 1) Parse Query Day
+                                    val queryDayObj = jsonObject.optJSONObject("query_day")
+                                    queryDayObj?.let {
+                                        val queryDay = gson.fromJson(it.toString(), QueryDayStats::class.java)
+                                        _queryDayStats.value = queryDay
                                     }
+
+                                    // 2) Parse Weekly Attendance
+                                    val weeklyArray = jsonObject.optJSONArray("weekly_attendance")
+                                    if (weeklyArray != null) {
+                                        val weeklyList = mutableListOf<AttendanceWeekly>()
+                                        for (i in 0 until weeklyArray.length()) {
+                                            val item = weeklyArray.getJSONObject(i)
+                                            weeklyList.add(
+                                                AttendanceWeekly(
+                                                    date = item.optString("date"),
+                                                    day_name = item.optString("day_name"),
+                                                    status = when (item.optString("status")) {
+                                                        "Present" -> true
+                                                        "Absent" -> false
+                                                        else -> false
+                                                    }
+                                                )
+                                            )
+                                        }
+                                        _weeklyStats.value = weeklyList
+                                    }
+
+                                    // 3) Parse Monthly Summary
+                                    val monthlyObj = jsonObject.optJSONObject("monthly_summary")
+                                    monthlyObj?.let {
+                                        val monthlySummary = gson.fromJson(
+                                            it.toString(),
+                                            AttendMonthlySummary::class.java
+                                        )
+                                        _monthlySummary.value = monthlySummary
+                                    }
+
+                                    Log.d("ATTENDANCE_VIEWMODEL", "Parsed weekly + monthly stats")
+
                                 } else {
                                     _errorMessage.value =
                                         jsonObject.optString("message", "Attendance fetch failed")
                                 }
+
                             } catch (e: Exception) {
                                 _errorMessage.value = "Parsing error: ${e.message}"
-                                Log.e("ATS-MONTHLY", "Parsing error: ${e.message}")
+                                Log.e("ATTENDANCE_VIEWMODEL", "Parsing error", e)
                             } finally {
                                 _isLoading.value = false
                             }
                         } else {
                             _isLoading.value = false
                             _errorMessage.value = "Server error: ${response.code()}"
-                            Log.e("ATS-MONTHLY", "Error body: ${response.errorBody()?.string()}")
+                            Log.e("ATTENDANCE_VIEWMODEL", "Server error: ${response.errorBody()?.string()}")
                         }
                     }
 
                     override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
                         _isLoading.value = false
-                        _errorMessage.value = "Network error: 🌐 try again later"
-                        Log.e("ATS-MONTHLY", "Failure: ${t.message}")
+                        _errorMessage.value = "Network error: 🌐 try again later..."
+                        Log.e("ATTENDANCE_VIEWMODEL", "Failure: ${t.message}")
                     }
                 })
         }
-
-        fun loadWeekly(stdId: Int, date: String, accessToken: String) {
-            _isLoading.value = true
-            _errorMessage.value = null
-            _attendanceWeekly.value = null // reset previous data
-
-            repository.fetchWeekly(
-                stdId = stdId,
-                date = date,
-                accessToken = accessToken,
-                object : Callback<ResponseBody> {
-                    override fun onResponse(
-                        call: Call<ResponseBody>,
-                        response: Response<ResponseBody>
-                    ) {
-                        if (response.isSuccessful) {
-                            try {
-                                val responseBody = response.body()?.string()
-                                val jsonObject = JSONObject(responseBody ?: "")
-
-                                val success = jsonObject.optBoolean("success", false)
-                                Log.d("ATS-WEEKLY", "Parsed: $responseBody")
-
-                                if (success) {
-                                    val gson = Gson()
-                                    val attendanceArray = jsonObject.optJSONArray("attendance")
-
-                                    if (attendanceArray != null) {
-                                        val type = object : TypeToken<List<AttendanceWeekly>>() {}.type
-                                        val attendanceList: List<AttendanceWeekly> =
-                                            gson.fromJson(attendanceArray.toString(), type)
-
-                                        _attendanceWeekly.value = attendanceList
-                                        Log.d("ATS-WEEKLY", "Parsed weekly list: $attendanceList")
-                                    } else {
-                                        val attendanceJson = jsonObject.optJSONObject("attendance")
-                                        if (attendanceJson != null) {
-                                            val attendanceObj = gson.fromJson(
-                                                attendanceJson.toString(),
-                                                AttendanceWeekly::class.java
-                                            )
-
-                                            _attendanceWeekly.value = listOf(attendanceObj)
-                                            Log.d("ATS-WEEKLY", "Parsed weekly object: $attendanceObj")
-                                        }
-                                    }
-                                } else {
-                                    val message = jsonObject.optString("message", "Attendance fetch failed")
-                                    _errorMessage.value = message
-                                    Log.e("ATS-WEEKLY", "Server responded success=false, msg=$message")
-                                }
-                            } catch (e: Exception) {
-                                _errorMessage.value = "Parsing error: ${e.message}"
-                                Log.e("ATS-WEEKLY", "Parsing error: ${e.message}")
-                            } finally {
-                                _isLoading.value = false
-                            }
-                        } else {
-                            _isLoading.value = false
-                            _errorMessage.value = "Server error: ${response.code()}"
-                            Log.e("ATS-WEEKLY", "Error body: ${response.errorBody()?.string()}")
-                        }
-                    }
-
-                    override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
-                        _isLoading.value = false
-                        _errorMessage.value = "Network error: 🌐 try again later"
-                        Log.e("ATS-WEEKLY", "Failure: ${t.message}")
-                    }
-                })
-        }
-
-
-
-
-
 
 
 

@@ -81,6 +81,14 @@ class AttendanceRepository {
     }
 
 
+    fun fetchAttendStats(stdId: Int, date: String, accessToken: String,callback: Callback<okhttp3.ResponseBody>) {
+        val request = AttendanceRequest(std_id = stdId, date = date)
+        val response = RetrofitClient.apiService.getAttendancesStats(request, accessToken)
+
+        return response.enqueue(callback)
+    }
+
+
 
 
 

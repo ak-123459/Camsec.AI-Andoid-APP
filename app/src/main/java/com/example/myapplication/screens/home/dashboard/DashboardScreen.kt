@@ -1,9 +1,7 @@
 package com.example.myapplication.screens.home.dashboard
 
-import AttendanceDashboard
 import android.annotation.SuppressLint
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -30,13 +27,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import com.example.myapplication.screens.components.StudentItems
-import com.example.myapplication.screens.home.dashboard.attandance_summary_screen.AttendanceScreen
 import com.example.myapplication.viewModels.StudentDetailsViewModel
 import com.example.myapplication.utility.SecurePrefsManager
 import androidx.compose.animation.animateContentSize
@@ -64,16 +54,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import com.example.myapplication.AttendanceDashboard
 import com.example.myapplication.local.repository.decodeBase64ToBitmap
 import com.example.myapplication.local.repository.isNetworkAvailable
 import com.example.myapplication.network.GetStudentByParentCode
 import com.example.myapplication.network.StudentDetails
 import com.example.myapplication.viewModels.AttendanceViewModel
 import com.example.myapplication.viewModels.DashboardUiState
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.launch
 
@@ -265,8 +254,18 @@ fun DashboardScreen() {
 @Composable
 fun StudentDashboardContent(student: StudentDetails,viewModel: AttendanceViewModel,accessToken: String) {
 
-
+    val weeklyStats by viewModel.weeklyStats.observeAsState()
+    val todayPresent by viewModel.queryDayStats.observeAsState()
+    val monthlySummary by viewModel.monthlySummary.observeAsState()
+    val isLoading by viewModel.isLoading
     val today = java.time.LocalDate.now().toString()
+
+
+    // Trigger fetch when screen is shown
+    LaunchedEffect(Unit) {
+        student.id?.let { viewModel.fetchAttendancesStats(it, today, accessToken) }
+    }
+
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
@@ -285,13 +284,15 @@ fun StudentDashboardContent(student: StudentDetails,viewModel: AttendanceViewMod
     }
 
 
-    student.id?.let { AttendanceDashboard(viewModel, it,accessToken) }
-
-    Log.d("MSG-CHART","${student.id.toString()}-${accessToken}")
-
+    AttendanceDashboard(
+        weeklyStats = weeklyStats,
+        todayPresent = todayPresent?.attendance?.present,
+        monthlyPresent = monthlySummary?.present_count ?: 0,
+        monthlyAbsent = monthlySummary?.absent_count ?: 0,
+        isLoading = isLoading
+    )
 
 }
-
 
 
 // Create a new composable for the default dashboard
